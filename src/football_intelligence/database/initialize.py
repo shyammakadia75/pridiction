@@ -22,6 +22,30 @@ def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _table_has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    """Return True if *table* already has a column named *column*."""
+    cols = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row["name"] == column for row in cols)
+
+
+def _safe_execute_migration(conn: sqlite3.Connection, stmt: str) -> None:
+    """Execute a migration statement, tolerating 'duplicate column' errors.
+
+    SQLite has no ``ALTER TABLE ... ADD COLUMN IF NOT EXISTS``.  When a
+    migration is re-applied (e.g. the column was added to the base table
+    definition), the statement would fail.  We catch that specific error and
+    skip it so migrations remain idempotent.
+    """
+    try:
+        conn.execute(stmt)
+    except sqlite3.OperationalError as exc:
+        msg = str(exc).lower()
+        if "duplicate column name" in msg or "already exists" in msg:
+            logger.debug("Skipping idempotent migration statement: %s", stmt)
+            return
+        raise
+
+
 def _current_version(conn: sqlite3.Connection) -> int:
     """Return the highest recorded schema version (0 if none yet)."""
     row = conn.execute(
@@ -64,7 +88,7 @@ def initialize_database(db_path=None) -> int:
             # Apply every migration newer than what is currently recorded.
             for version in range(current + 1, target + 1):
                 for stmt in MIGRATIONS.get(version, ()):
-                    conn.execute(stmt)
+                    _safe_execute_migration(conn, stmt)
                 conn.execute(
                     "INSERT OR REPLACE INTO schema_version "
                     "(version, applied_at) VALUES (?, ?);",

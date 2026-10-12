@@ -38,6 +38,11 @@ class IngestionResult:
     records_read: int = 0
     records_inserted: int = 0
     records_updated: int = 0
+    records_skipped: int = 0
+    records_matched: int = 0
+    records_unmatched: int = 0
+    records_ambiguous: int = 0
+    records_invalid: int = 0
     status: str = "success"
     error_message: Optional[str] = None
     started_at: str = field(
@@ -106,6 +111,11 @@ class BaseIngestor(ABC):
             load_result = self.load(data)
             result.records_inserted = load_result.records_inserted
             result.records_updated = load_result.records_updated
+            result.records_skipped = load_result.records_skipped
+            result.records_matched = load_result.records_matched
+            result.records_unmatched = load_result.records_unmatched
+            result.records_ambiguous = load_result.records_ambiguous
+            result.records_invalid = load_result.records_invalid
         except IngestionError:
             result.status = "failed"
             result.error_message = "Validation failed (see logs)."

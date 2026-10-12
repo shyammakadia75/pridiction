@@ -16,7 +16,7 @@ from typing import Final
 # ---------------------------------------------------------------------------
 # Schema versioning
 # ---------------------------------------------------------------------------
-SCHEMA_VERSION: Final[int] = 1
+SCHEMA_VERSION: Final[int] = 2
 
 # ---------------------------------------------------------------------------
 # SQL statements
@@ -164,11 +164,24 @@ CREATE TABLE IF NOT EXISTS odds (
     decimal_odds    REAL    NOT NULL,
     observed_at     TEXT    NOT NULL,
     source_reference TEXT,
+    odds_type       TEXT    CHECK (odds_type IN ('opening', 'closing')),
+    provider        TEXT,
     created_at      TEXT    NOT NULL,
     CONSTRAINT fk_odds_match FOREIGN KEY (match_id) REFERENCES matches (id),
-    CONSTRAINT chk_decimal_odds_positive CHECK (decimal_odds > 0)
+    CONSTRAINT chk_decimal_odds_positive CHECK (decimal_odds > 0),
+    CONSTRAINT chk_odds_type CHECK (odds_type IS NULL OR odds_type IN ('opening', 'closing'))
 );
 """
+
+# Migration v2 adds odds_type and provider columns to the odds table
+# plus a unique index so that re-imports are idempotent (Part 3 -- odds).
+ODDS_MIGRATION_V2: Final[tuple[str, ...]] = (
+    "ALTER TABLE odds ADD COLUMN odds_type TEXT "
+    "CHECK (odds_type IN ('opening', 'closing'));",
+    "ALTER TABLE odds ADD COLUMN provider TEXT;",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_odds_natural_key "
+    "ON odds (match_id, provider, bookmaker, market, selection, odds_type, source_reference);",
+)
 
 PREDICTION_ERRORS_SQL: Final[str] = """
 CREATE TABLE IF NOT EXISTS prediction_errors (
@@ -235,7 +248,9 @@ INDEX_STATEMENTS: Final[tuple[str, ...]] = (
 # Migrations keyed by the version they introduce. Version 1 is the baseline
 # applied by ALL_TABLES, so this dict starts empty and is ready for future
 # schema evolution (Part 2+) without dropping data.
-MIGRATIONS: Final[dict[int, tuple[str, ...]]] = {}
+MIGRATIONS: Final[dict[int, tuple[str, ...]]] = {
+    2: ODDS_MIGRATION_V2,
+}
 
 # Convenience: the set of table names managed by this schema, useful for
 # health checks and tests.

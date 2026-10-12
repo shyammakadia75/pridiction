@@ -50,7 +50,20 @@ CREATE TABLE IF NOT EXISTS players (
     date_of_birth     TEXT,
     created_at        TEXT    NOT NULL,
     updated_at        TEXT    NOT NULL,
-    CONSTRAINT uq_players_provider_id UNIQUE (provider, provider_player_id)
+        CONSTRAINT uq_players_provider_id UNIQUE (provider, provider_player_id)
+);
+"""
+
+COMPETITIONS_SQL: Final[str] = """
+CREATE TABLE IF NOT EXISTS competitions (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider                TEXT    NOT NULL,
+    provider_competition_id TEXT    NOT NULL,
+    competition_name        TEXT,
+    country                 TEXT,
+    created_at              TEXT    NOT NULL,
+    updated_at              TEXT    NOT NULL,
+    CONSTRAINT uq_competitions_provider_id UNIQUE (provider, provider_competition_id)
 );
 """
 
@@ -75,7 +88,48 @@ CREATE TABLE IF NOT EXISTS matches (
     CONSTRAINT fk_matches_away_team  FOREIGN KEY (away_team_id)  REFERENCES teams (id),
     CONSTRAINT chk_home_goals_nonneg CHECK (home_goals IS NULL OR home_goals >= 0),
     CONSTRAINT chk_away_goals_nonneg CHECK (away_goals IS NULL OR away_goals >= 0),
-    CONSTRAINT chk_teams_distinct    CHECK (home_team_id <> away_team_id)
+        CONSTRAINT chk_teams_distinct    CHECK (home_team_id <> away_team_id)
+);
+"""
+
+DATA_SOURCES_SQL: Final[str] = """
+CREATE TABLE IF NOT EXISTS data_sources (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider            TEXT    NOT NULL,
+    dataset_name        TEXT    NOT NULL,
+    source_reference    TEXT,
+    retrieval_timestamp TEXT    NOT NULL,
+    data_version        TEXT,
+    metadata            TEXT,
+    created_at          TEXT    NOT NULL
+);
+"""
+
+INGESTION_RUNS_SQL: Final[str] = """
+CREATE TABLE IF NOT EXISTS ingestion_runs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider          TEXT    NOT NULL,
+    dataset_name      TEXT    NOT NULL,
+    started_at        TEXT    NOT NULL,
+    completed_at      TEXT,
+    status            TEXT    NOT NULL,
+    records_read      INTEGER,
+    records_inserted  INTEGER,
+    records_updated   INTEGER,
+    error_message     TEXT,
+    created_at        TEXT    NOT NULL
+);
+"""
+
+MODEL_VERSIONS_SQL: Final[str] = """
+CREATE TABLE IF NOT EXISTS model_versions (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_name        TEXT    NOT NULL,
+    version           TEXT    NOT NULL,
+    created_at        TEXT    NOT NULL,
+    configuration_json TEXT   NOT NULL,
+    evaluation_status TEXT,
+    CONSTRAINT uq_model_versions_name_version UNIQUE (model_name, version)
 );
 """
 

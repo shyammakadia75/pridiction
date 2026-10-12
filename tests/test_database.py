@@ -128,7 +128,10 @@ def test_repeated_init_keeps_schema_version(db_path):
     version_first = get_database_version(db_path)
     initialize_database(db_path)
     version_second = get_database_version(db_path)
-    def test_foreign_keys_enabled_by_default(db_path):
+    assert version_first == version_second == SCHEMA_VERSION
+
+
+def test_foreign_keys_enabled_by_default(db_path):
     initialize_database(db_path)
     conn = _connect(db_path)
     fk = conn.execute("PRAGMA foreign_keys;").fetchone()[0]

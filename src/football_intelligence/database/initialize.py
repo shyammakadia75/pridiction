@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
-from pathlib import Path
 
-from .. import get_logger
-from ..config import settings as _app_settings
 from ..exceptions import DatabaseError
+from ..logging_config import get_logger
 from .connection import database_connection, resolve_db_path
 from .schema import ALL_TABLES, INDEX_STATEMENTS, MIGRATIONS, SCHEMA_VERSION
 

@@ -30,7 +30,7 @@ from .exceptions import ConfigError
 # => PROJECT_ROOT       = repository root
 # ---------------------------------------------------------------------------
 PACKAGE_DIR: Final[Path] = Path(__file__).resolve().parent
-SRC_DIR: Final[Path] = PACKAGE_DIR.parent.parent  # src/
+SRC_DIR: Final[Path] = PACKAGE_DIR.parent  # src/
 PROJECT_ROOT: Final[Path] = SRC_DIR.parent
 
 DATA_DIR: Final[Path] = PROJECT_ROOT / "data"

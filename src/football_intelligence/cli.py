@@ -10,15 +10,22 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
 from . import __version__
 from .config import load_settings
+from .data.ingestion.base import IngestionResult
+from .data.ingestion.statsbomb import (
+    StatsBombIngestor,
+    list_competitions,
+    record_ingestion_run,
+)
 from .database import get_database_version, initialize_database, resolve_db_path
 from .database.connection import get_connection
 from .database.schema import TABLE_NAMES
-from .exceptions import ConfigError, DatabaseError
+from .exceptions import ConfigError, DatabaseError, IngestionError
 from .logging_config import get_logger, setup_logging
 
 logger = get_logger("cli")
@@ -171,6 +178,88 @@ def cmd_health(args: argparse.Namespace) -> int:
     return 1 if report.has_errors else 0
 
 
+def _safe_record_run(db_path, result: IngestionResult) -> None:
+    """Record an ingestion run, logging a warning if the DB is unavailable."""
+    try:
+        record_ingestion_run(db_path, result)
+    except Exception as exc:  # noqa: BLE001 -- best-effort audit trail
+        logger.warning("Could not record ingestion run: %s", exc)
+
+
+def cmd_statsbomb_list(args: argparse.Namespace) -> int:
+    """List available StatsBomb competitions and seasons."""
+    setup_logging()
+    try:
+        df = list_competitions(
+            cache_dir=Path(args.cache_dir) if args.cache_dir else None,
+            refresh=args.refresh,
+            timeout=args.timeout,
+        )
+    except IngestionError as exc:
+        logger.error("Failed to list competitions: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    if df.empty:
+        print("No competitions found in the StatsBomb Open Data repository.")
+        return 0
+    display_cols = [
+        "competition_id", "season_id",
+        "competition_name", "season_name",
+        "country_name", "competition_gender",
+    ]
+    cols = [c for c in display_cols if c in df.columns]
+    source = "cached" if not args.refresh and not args.cache_dir else "network"
+    print(
+        f"StatsBomb Open Data - {len(df)} competition/season entries ({source}):"
+    )
+    print(df[cols].to_string(index=False))
+    return 0
+
+
+def cmd_statsbomb_import(args: argparse.Namespace) -> int:
+    """Import matches for a StatsBomb competition and season."""
+    setup_logging()
+    cache_dir = Path(args.cache_dir) if args.cache_dir else None
+    ingestor = StatsBombIngestor(
+        competition_id=args.competition_id,
+        season_id=args.season_id,
+        db_path=args.db_path,
+        cache_dir=cache_dir,
+        refresh=args.refresh,
+        timeout=args.timeout,
+    )
+    logger.info(
+        "Importing StatsBomb competition %s season %s",
+        ingestor.competition_id, ingestor.season_id,
+    )
+    try:
+        result = ingestor.ingest()
+    except IngestionError as exc:
+        failed = IngestionResult(
+            provider=ingestor.provider,
+            dataset_name=ingestor.dataset_name,
+            status="failed",
+            error_message=str(exc),
+            completed_at=datetime.now(timezone.utc).isoformat(),
+        )
+        _safe_record_run(args.db_path, failed)
+        logger.error("Import failed: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    source = "cache" if ingestor.was_cached else "network"
+    _safe_record_run(args.db_path, result)
+    print(
+        f"Selected: competition={ingestor.competition_id}, "
+        f"season={ingestor.season_id}"
+    )
+    print(f"Source: {ingestor.source_url} ({source})")
+    print(f"Records read: {result.records_read}")
+    print(f"Records inserted: {result.records_inserted}")
+    print(f"Records updated: {result.records_updated}")
+    print(f"Status: {result.status}")
+    return 0 if result.is_success else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="football-intelligence",
@@ -192,6 +281,58 @@ def build_parser() -> argparse.ArgumentParser:
         help="Database path to check (defaults to configured path).",
     )
     health.set_defaults(func=cmd_health)
+
+    # -- StatsBomb subcommand group ----------------------------------------
+    sb = subparsers.add_parser(
+        "statsbomb", help="StatsBomb Open Data ingestion.",
+    )
+    sb_sub = sb.add_subparsers(dest="action", required=True)
+
+    sb_list = sb_sub.add_parser(
+        "list", help="List available StatsBomb competitions and seasons.",
+    )
+    sb_list.add_argument(
+        "--refresh", action="store_true",
+        help="Re-download competitions.json even if cached.",
+    )
+    sb_list.add_argument(
+        "--cache-dir", default=None,
+        help="Override the raw-file cache directory.",
+    )
+    sb_list.add_argument(
+        "--timeout", type=int, default=30,
+        help="HTTP timeout in seconds (default 30).",
+    )
+    sb_list.set_defaults(func=cmd_statsbomb_list)
+
+    sb_import = sb_sub.add_parser(
+        "import", help="Import matches for a StatsBomb competition and season.",
+    )
+    sb_import.add_argument(
+        "--competition-id", type=int, required=True,
+        help="StatsBomb competition ID (positive integer).",
+    )
+    sb_import.add_argument(
+        "--season-id", type=int, required=True,
+        help="StatsBomb season ID (positive integer).",
+    )
+    sb_import.add_argument(
+        "--db-path", default=None,
+        help="Database path (defaults to configured path).",
+    )
+    sb_import.add_argument(
+        "--cache-dir", default=None,
+        help="Override the raw-file cache directory.",
+    )
+    sb_import.add_argument(
+        "--refresh", action="store_true",
+        help="Re-download even if cached.",
+    )
+    sb_import.add_argument(
+        "--timeout", type=int, default=30,
+        help="HTTP timeout in seconds (default 30).",
+    )
+    sb_import.set_defaults(func=cmd_statsbomb_import)
 
     return parser
 

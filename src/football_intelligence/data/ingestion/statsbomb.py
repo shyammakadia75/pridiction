@@ -24,6 +24,7 @@ without ``--refresh`` reuses cached files instead of re-downloading.
 from __future__ import annotations
 
 import json
+import sqlite3
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -315,7 +316,17 @@ def _ensure_initialized(db_path: Optional[Path], conn) -> None:
     Raises :class:`DatabaseError` if the database has not been initialized
     with ``init-db``.
     """
-    row = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
+    try:
+        row = conn.execute(
+            "SELECT MAX(version) FROM schema_version"
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        if "schema_version" in str(exc):
+            raise DatabaseError(
+                f"Database '{db_path}' is not initialized. "
+                "Run 'football-intelligence init-db' first."
+            ) from exc
+        raise
     if row is None or row[0] is None:
         raise DatabaseError(
             f"Database '{db_path}' is not initialized. "
@@ -382,7 +393,374 @@ def _upsert_team(
     )
     return int(cur.lastrowid)
 
-# CHUNK_END
+def _upsert_match(
+    conn,
+    row: pd.Series,
+    competition_id: int,
+    home_team_id: int,
+    away_team_id: int,
+    now: str,
+) -> str:
+    """Insert or update a match row.  Returns ``"inserted"`` or ``"updated"``."""
+    pid = _or_none(row.get("provider_match_id"))
+    assert pid is not None  # validate() guarantees this
+    exists = conn.execute(
+        "SELECT id FROM matches WHERE provider=? AND provider_match_id=?",
+        (PROVIDER, pid),
+    ).fetchone()
+    if exists:
+        conn.execute(
+            "UPDATE matches SET "
+            "competition_id=?, season_name=?, match_date=?, "
+            "home_team_id=?, away_team_id=?, home_goals=?, away_goals=?, "
+            "match_status=?, updated_at=? "
+            "WHERE id=?",
+            (
+                competition_id,
+                _or_none(row.get("season_name")),
+                _or_none(row.get("match_date")),
+                home_team_id,
+                away_team_id,
+                _to_int_or_none(row.get("home_score")),
+                _to_int_or_none(row.get("away_score")),
+                _or_none(row.get("match_status")),
+                now,
+                int(exists["id"]),
+            ),
+        )
+        return "updated"
+    conn.execute(
+        "INSERT INTO matches "
+        "(provider, provider_match_id, competition_id, season_name, "
+        "match_date, home_team_id, away_team_id, home_goals, away_goals, "
+        "match_status, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            PROVIDER,
+            pid,
+            competition_id,
+            _or_none(row.get("season_name")),
+            _or_none(row.get("match_date")),
+            home_team_id,
+            away_team_id,
+            _to_int_or_none(row.get("home_score")),
+            _to_int_or_none(row.get("away_score")),
+            _or_none(row.get("match_status")),
+            now,
+            now,
+        ),
+    )
+    return "inserted"
+
+
+def _record_data_source(
+    conn,
+    source_ref: str,
+    retrieval_ts: str,
+    data_version: Optional[str],
+    metadata_json: str,
+    now: str,
+) -> None:
+    """Record provenance metadata for a downloaded source file."""
+    conn.execute(
+        "INSERT INTO data_sources "
+        "(provider, dataset_name, source_reference, retrieval_timestamp, "
+        "data_version, metadata, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            PROVIDER,
+            "matches",
+            source_ref,
+            retrieval_ts,
+            data_version,
+            metadata_json,
+            now,
+        ),
+    )
+
+# ---------------------------------------------------------------------------
+# Run recording (CLI / orchestration helper)
+# ---------------------------------------------------------------------------
+
+def record_ingestion_run(db_path: Optional[Path], result: IngestionResult) -> None:
+    """Persist an :class:`IngestionResult` as a row in ``ingestion_runs``.
+
+    Always creates a new row (audit trail).  Safe to call for both successful
+    and failed runs.
+    """
+    path = resolve_db_path(db_path)
+    now = _utcnow()
+    with database_connection(path) as conn:
+        conn.execute(
+            "INSERT INTO ingestion_runs "
+            "(provider, dataset_name, started_at, completed_at, status, "
+            "records_read, records_inserted, records_updated, error_message, "
+            "created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                result.provider,
+                result.dataset_name,
+                result.started_at,
+                result.completed_at,
+                result.status,
+                result.records_read,
+                result.records_inserted,
+                result.records_updated,
+                result.error_message,
+                now,
+            ),
+        )
+    logger.info(
+        "Recorded ingestion run: %s/%s status=%s read=%d inserted=%d updated=%d",
+        result.provider,
+        result.dataset_name,
+        result.status,
+        result.records_read,
+        result.records_inserted,
+        result.records_updated,
+    )
+
+# ---------------------------------------------------------------------------
+# Ingestor
+# ---------------------------------------------------------------------------
+
+
+class StatsBombIngestor(BaseIngestor):
+    """Ingestor for StatsBomb Open Data **match** metadata.
+
+    Downloads (or reads from cache) the match JSON for a given
+    ``competition_id`` / ``season_id`` pair, normalizes it to the project
+    schema, validates it, and atomically upserts the related
+    competition -> team -> match rows inside a single transaction.
+
+    Event and lineup files are never accessed in this phase.
+
+    Args:
+        competition_id: StatsBomb competition ID (positive integer).
+        season_id: StatsBomb season ID (positive integer).
+        db_path: Target SQLite database path (defaults to configured path).
+        cache_dir: Override for the raw-file cache directory.
+        refresh: When ``True``, force re-download even if cached.
+        source_url: Override the matches JSON URL (testing).
+        timeout: HTTP timeout in seconds.
+    """
+
+    def __init__(
+        self,
+        competition_id: int,
+        season_id: int,
+        db_path: Optional[Path] = None,
+        cache_dir: Optional[Path] = None,
+        refresh: bool = False,
+        source_url: Optional[str] = None,
+        timeout: int = DEFAULT_TIMEOUT,
+    ) -> None:
+        try:
+            self._competition_id = int(competition_id)
+            self._season_id = int(season_id)
+        except (TypeError, ValueError) as exc:
+            raise IngestionError(
+                f"competition_id and season_id must be integers, got "
+                f"{competition_id!r} ({type(competition_id).__name__}), "
+                f"{season_id!r} ({type(season_id).__name__})"
+            ) from exc
+        if self._competition_id <= 0 or self._season_id <= 0:
+            raise IngestionError(
+                f"competition_id and season_id must be positive, "
+                f"got {self._competition_id}, {self._season_id}"
+            )
+        self._db_path = db_path
+        self._cache_dir = Path(cache_dir) if cache_dir else _default_cache_dir()
+        self._refresh = refresh
+        self._source_url = source_url or (
+            f"{STATSBOMB_BASE_URL}/matches/"
+            f"{self._competition_id}/{self._season_id}.json"
+        )
+        self._timeout = timeout
+        self._was_cached: bool = False
+        self._retrieval_ts: Optional[str] = None
+
+    # -- properties -------------------------------------------------------
+
+    @property
+    def provider(self) -> str:
+        return PROVIDER
+
+    @property
+    def dataset_name(self) -> str:
+        return "matches"
+
+    @property
+    def source_reference(self) -> Optional[str]:
+        return self._source_url
+
+    @property
+    def was_cached(self) -> bool:
+        """``True`` if the last ``retrieve()`` used a cached file."""
+        return self._was_cached
+
+    @property
+    def retrieval_timestamp(self) -> Optional[str]:
+        return self._retrieval_ts
+
+    @property
+    def competition_id(self) -> int:
+        return self._competition_id
+
+    @property
+    def season_id(self) -> int:
+        return self._season_id
+
+    @property
+    def source_url(self) -> str:
+        return self._source_url
+
+    # -- cache path -------------------------------------------------------
+
+    def _cache_path(self) -> Path:
+        return _safe_cache_path(
+            self._cache_dir, "matches",
+            str(self._competition_id),
+            f"{self._season_id}.json",
+        )
+
+    # -- pipeline ----------------------------------------------------------
+
+    def retrieve(self) -> pd.DataFrame:
+        """Download (or read cached) match JSON, return a normalized DataFrame."""
+        url = self._source_url
+        cache_path = self._cache_path()
+        self._retrieval_ts = _utcnow()
+        data, self._was_cached = _download_json(
+            url, cache_path, self._timeout, self._refresh,
+        )
+        if not isinstance(data, list):
+            raise IngestionError(
+                f"Unexpected match JSON for competition "
+                f"{self._competition_id}/{self._season_id}: "
+                f"expected a list, got {type(data).__name__}"
+            )
+        df = _matches_to_dataframe(data)
+        logger.info(
+            "Retrieved %d match record(s) for competition %s season %s "
+            "(source: %s)",
+            len(df),
+            self._competition_id,
+            self._season_id,
+            "cache" if self._was_cached else "network",
+        )
+        return df
+
+    def validate(self, data: pd.DataFrame) -> ValidationResult:
+        """Validate the normalized match DataFrame before loading."""
+        result = ValidationResult(row_count=len(data))
+        result.merge(validate_required_columns(data, list(REQUIRED_COLUMNS)))
+        result.merge(validate_no_missing_values(data, list(REQUIRED_NON_NULL)))
+        result.merge(validate_date_fields(data, ["match_date"]))
+        result.merge(
+            validate_non_negative_goals(data, "home_score", "away_score")
+        )
+        result.merge(
+            validate_home_away_different(data, "home_team_id", "away_team_id")
+        )
+        result.merge(
+            validate_no_duplicate_provider_ids(
+                data, "provider", "provider_match_id"
+            )
+        )
+        return result
+
+    def load(self, data: pd.DataFrame) -> IngestionResult:
+        """Persist validated data, returning insert / update counts.
+
+        All entities (competition, teams, matches, data-source provenance)
+        are written inside a single transaction so that a failure rolls
+        everything back.  Re-running with the same data is idempotent:
+        existing rows are updated, no duplicates are created.
+        """
+        db_path = resolve_db_path(self._db_path)
+        now = _utcnow()
+        inserted = 0
+        updated = 0
+
+        # Most common non-null data_version across records.
+        data_version: Optional[str] = None
+        if "data_version" in data.columns and len(data) > 0:
+            versions = data["data_version"].dropna()
+            if not versions.empty:
+                data_version = str(versions.mode().iloc[0])
+
+        metadata_json = json.dumps(
+            {
+                "competition_id": self._competition_id,
+                "season_id": self._season_id,
+                "record_count": len(data),
+                "retrieval_source": "cache" if self._was_cached else "network",
+                "data_version": data_version,
+            }
+        )
+
+        with database_connection(db_path) as conn:
+            _ensure_initialized(db_path, conn)
+            for _, row in data.iterrows():
+                comp_id = _upsert_competition(
+                    conn,
+                    PROVIDER,
+                    str(_or_none(row.get("provider_competition_id")) or ""),
+                    _or_none(row.get("competition_name")),
+                    _or_none(row.get("country_name")),
+                    now,
+                )
+                home_id = _upsert_team(
+                    conn,
+                    PROVIDER,
+                    str(_or_none(row.get("home_team_id")) or ""),
+                    _or_none(row.get("home_team_name")),
+                    _or_none(row.get("home_team_country")),
+                    now,
+                )
+                away_id = _upsert_team(
+                    conn,
+                    PROVIDER,
+                    str(_or_none(row.get("away_team_id")) or ""),
+                    _or_none(row.get("away_team_name")),
+                    _or_none(row.get("away_team_country")),
+                    now,
+                )
+                action = _upsert_match(
+                    conn, row, comp_id, home_id, away_id, now,
+                )
+                if action == "inserted":
+                    inserted += 1
+                else:
+                    updated += 1
+            _record_data_source(
+                conn,
+                self._source_url,
+                self._retrieval_ts or now,
+                data_version,
+                metadata_json,
+                now,
+            )
+
+        logger.info(
+            "Loaded %d match record(s): %d inserted, %d updated",
+            len(data),
+            inserted,
+            updated,
+        )
+        return IngestionResult(
+            provider=PROVIDER,
+            dataset_name=self.dataset_name,
+            records_read=len(data),
+            records_inserted=inserted,
+            records_updated=updated,
+            status="success",
+        )
+
+
+
+
+
 
 
 

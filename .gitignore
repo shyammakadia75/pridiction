@@ -49,6 +49,9 @@ Thumbs.db
 data/processed/**/*.csv
 data/processed/**/*.parquet
 
+# External source cache (StatsBomb raw JSON, etc.)
+data/raw/statsbomb/
+
 # Models
 models/*.pkl
 models/*.joblib

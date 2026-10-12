@@ -8,8 +8,13 @@ prediction, betting-value identification, and adaptive learning.
 > an SQLite data layer with enforced constraints, a provider-agnostic ingestion
 > interface, a reusable validation framework, a CLI, tests, and reproducible
 > setup. **No real football data is ingested and no fake data is inserted in this
-> phase.** Parts 2+ (StatsBomb ingestion, modeling, betting logic) are **not**
-> implemented yet.
+> phase.**
+>
+> ## Part 2 — StatsBomb Open Data Ingestion ✅
+> Added a `StatsBombIngestor` adapter that downloads match metadata from the
+> [StatsBomb Open Data](https://github.com/statsbomb/open-data) repository,
+> normalizes it to the existing SQLite schema, validates it, and persists it
+> with full provenance tracking. See the **StatsBomb Ingestion** section below.
 
 ## Requirements
 
@@ -64,6 +69,62 @@ directly. The configured database defaults to `data/football_intelligence.db`.
 `init-db` creates the SQLite schema **without inserting any data**. `health`
 verifies configuration, directories, database accessibility, schema (all 12
 tables), foreign-key enforcement, and logging.
+
+## StatsBomb Ingestion
+
+```powershell
+# Initialize the database (if not already done)
+.venv\Scripts\python -m football_intelligence init-db
+
+# List available competition/season pairs (fetches from StatsBomb Open Data)
+.venv\Scripts\python -m football_intelligence statsbomb list
+
+# Import Champions League 2018/2019 into the default database
+.venv\Scripts\python -m football_intelligence statsbomb import --competition-id 16 --season-id 4
+
+# Force a fresh download (bypass the local JSON cache)
+.venv\Scripts\python -m football_intelligence statsbomb import --competition-id 16 --season-id 4 --refresh
+```
+
+### How it works
+
+1. **Download** -- fetches JSON from the [StatsBomb Open Data](https://github.com/statsbomb/open-data)
+   GitHub repository using Python's stdlib `urllib.request` (no extra HTTP dependency).
+2. **Cache** -- the raw JSON is stored deterministically under `data/raw/statsbomb/`
+   (e.g. `data/raw/statsbomb/matches/16/4.json`).  Subsequent imports reuse the
+   cache unless `--refresh` is passed.  Path-traversal is blocked: competition
+   and season IDs are validated as positive integers.
+3. **Normalize** -- each match record is mapped to the project's SQLite schema
+   (`competitions`, `teams`, `matches`), with `provider = "statsbomb"` and the
+   StatsBomb match ID stored in `provider_match_id`.
+4. **Validate** -- records pass through the shared validation framework before
+   persistence.
+5. **Load** -- an idempotent upsert (insert-or-update) pattern writes
+   competitions, teams, and matches in a **single transaction** that rolls back
+   on any error.  Re-importing the same competition simply updates existing rows.
+6. **Provenance** -- every run is recorded in `data_sources` (source URL, retrieval
+   timestamp, data version) and `ingestion_runs` (status, record counts, errors).
+
+### CLI reference
+
+| Flag                | Short | Description                                              |
+| ------------------- | ----- | -------------------------------------------------------- |
+| `--competition-id`  | `-c`  | StatsBomb competition ID (positive integer)            |
+| `--season-id`       | `-s`  | StatsBomb season ID (positive integer)                   |
+| `--db-path`         | `-d`  | Override the SQLite database path                       |
+| `--cache-dir`       |       | Override the JSON cache directory                       |
+| `--refresh`         |       | Re-download from the network instead of using the cache |
+| `--timeout`         |       | HTTP timeout in seconds (default 15)                     |
+
+### Notable competition / season pairs
+
+| Competition          | Competition ID | Season ID | Season        |
+| -------------------- | -------------- | --------- | ------------- |
+| Champions League     | 16             | 4         | 2018/2019     |
+| Premier League       | 2              | 44        | 2003/2004     |
+| La Liga              | 11             | 23        | 2011/2012     |
+| FIFA World Cup       | 43             | 3         | 2018          |
+| NWSL                 | 49             | 3         | 2018          |
 
 ## Testing
 
@@ -130,6 +191,7 @@ pridiction/
 │   ├── conftest.py
 │   ├── test_config.py
 │   ├── test_database.py
+│   ├── test_statsbomb.py
 │   └── test_validation.py
 ├── .env.example
 ├── .gitignore

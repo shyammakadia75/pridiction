@@ -56,7 +56,8 @@ models/*.h5
 models/*.pt
 models/*.pth
 
-# Logs
+# Logs (at any depth, including root-level run logs)
+*.log
 logs/*.log
 
 # ---------------------------------------------------------------------------

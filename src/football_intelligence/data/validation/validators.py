@@ -184,7 +184,6 @@ def validate_non_negative_goals(
             values = numeric.to_numpy()[bad_mask.to_numpy()]
             for pos, val in zip(positions[:5], values[:5]):
                 result.add_error(col, f"Negative goal count {val}.", record_index=pos)
-            result.add_error(col, f"{len(positions)} negative goal value(s).")
     return result
 
 
@@ -229,7 +228,6 @@ def validate_probability_ranges(
             values = numeric.to_numpy()[bad_mask.to_numpy()]
             for pos, val in zip(positions[:5], values[:5]):
                 result.add_error(col, f"Probability {val} outside [0, 1].", record_index=pos)
-            result.add_error(col, f"{len(positions)} value(s) outside [0, 1].")
     return result
 
 
@@ -259,8 +257,9 @@ def validate_probability_sum(
                 f"Probability sum {float(sums[pos]):.6f} != 1.0 (tolerance {tolerance}).",
                 record_index=pos,
             )
-        result.add_error("probability_sum", f"{len(positions)} row(s) deviate from sum=1.")
     return result
+
+
 def validate_positive_odds(
     df: pd.DataFrame, odds_col: str = "decimal_odds"
 ) -> ValidationResult:
@@ -276,7 +275,6 @@ def validate_positive_odds(
         values = numeric.to_numpy()[bad_mask.to_numpy()]
         for pos, val in zip(positions[:5], values[:5]):
             result.add_error(odds_col, f"Non-positive decimal odds {val}.", record_index=pos)
-        result.add_error(odds_col, f"{len(positions)} non-positive odds value(s).")
     return result
 
 
@@ -294,7 +292,7 @@ def validate_date_fields(
             result.add_warning(col, "Column is entirely null.")
             continue
         try:
-            parsed = pd.to_datetime(series, errors="coerce")
+            parsed = pd.to_datetime(series, errors="coerce", format="mixed", utc=True)
         except (ValueError, TypeError) as exc:
             result.add_error(col, f"Could not parse dates: {exc}")
             continue
@@ -305,7 +303,6 @@ def validate_date_fields(
                 result.add_error(
                     col, f"Unparseable date value {series.iloc[pos]!r}.", record_index=pos
                 )
-            result.add_error(col, f"{len(positions)} unparseable date value(s).")
     return result
 
 
@@ -331,7 +328,6 @@ def validate_home_away_different(
             result.add_error(
                 "teams", f"Home and away team identical ({home.iloc[pos]}).", record_index=pos
             )
-        result.add_error("teams", f"{len(positions)} row(s) with home == away team.")
     return result
 
 
@@ -356,7 +352,6 @@ def validate_referential_integrity(
                 f"Unknown {field} identifier {values[pos]!r} not in reference set.",
                 record_index=pos,
             )
-        result.add_error(field, f"{len(positions)} row(s) reference unknown {field}.")
     return result
 
 

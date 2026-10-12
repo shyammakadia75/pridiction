@@ -152,7 +152,7 @@ def test_probability_sum_valid_and_invalid():
     valid = pd.DataFrame({"home": [0.5, 0.4], "draw": [0.3, 0.3], "away": [0.2, 0.3]})
     assert validate_probability_sum(valid, ["home", "draw", "away"]).is_valid
 
-    invalid = pd.DataFrame({"home": [0.5, 0.4], "draw": [0.3, 0.3], "away": [0.1, 0.2]})
+    invalid = pd.DataFrame({"home": [0.5, 0.4], "draw": [0.3, 0.3], "away": [0.2, 0.2]})
     result = validate_probability_sum(invalid, ["home", "draw", "away"])
     assert not result.is_valid
     assert result.error_count == 1  # only row 1 (sum 0.9)

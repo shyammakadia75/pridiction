@@ -1,0 +1,40 @@
+OK  football_intelligence.config
+OK  football_intelligence.logging_config
+ERR football_intelligence.database
+Traceback (most recent call last):
+  File "C:\pridection\pridiction\scripts\_import_check.py", line 22, in <module>
+    __import__(modname, fromlist=["*"])
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\pridection\pridiction\src\football_intelligence\database\__init__.py", line 5, in <module>
+    from .initialize import initialize_database
+  File "C:\pridection\pridiction\src\football_intelligence\database\initialize.py", line 13, in <module>
+    from .. import get_logger
+ImportError: cannot import name 'get_logger' from 'football_intelligence' (C:\pridection\pridiction\src\football_intelligence\__init__.py)
+
+OK  football_intelligence.database.connection
+ERR football_intelligence.database.initialize
+Traceback (most recent call last):
+  File "C:\pridection\pridiction\scripts\_import_check.py", line 22, in <module>
+    __import__(modname, fromlist=["*"])
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\pridection\pridiction\src\football_intelligence\database\__init__.py", line 5, in <module>
+    from .initialize import initialize_database
+  File "C:\pridection\pridiction\src\football_intelligence\database\initialize.py", line 13, in <module>
+    from .. import get_logger
+ImportError: cannot import name 'get_logger' from 'football_intelligence' (C:\pridection\pridiction\src\football_intelligence\__init__.py)
+
+OK  football_intelligence.data.validation.validators
+OK  football_intelligence.data.ingestion.base
+ERR football_intelligence.cli
+Traceback (most recent call last):
+  File "C:\pridection\pridiction\scripts\_import_check.py", line 22, in <module>
+    __import__(modname, fromlist=["*"])
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\pridection\pridiction\src\football_intelligence\cli.py", line 18, in <module>
+    from .database import get_database_version, initialize_database, resolve_db_path
+  File "C:\pridection\pridiction\src\football_intelligence\database\__init__.py", line 5, in <module>
+    from .initialize import initialize_database
+  File "C:\pridection\pridiction\src\football_intelligence\database\initialize.py", line 13, in <module>
+    from .. import get_logger
+ImportError: cannot import name 'get_logger' from 'football_intelligence' (C:\pridection\pridiction\src\football_intelligence\__init__.py)
+

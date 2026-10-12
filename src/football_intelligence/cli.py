@@ -13,13 +13,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-from .. import __version__
-from ..config import load_settings
-from ..database import get_database_version, initialize_database, resolve_db_path
-from ..database.connection import get_connection
-from ..database.schema import TABLE_NAMES
-from ..exceptions import ConfigError, DatabaseError
-from ..logging_config import get_logger, setup_logging
+from . import __version__
+from .config import load_settings
+from .database import get_database_version, initialize_database, resolve_db_path
+from .database.connection import get_connection
+from .database.schema import TABLE_NAMES
+from .exceptions import ConfigError, DatabaseError
+from .logging_config import get_logger, setup_logging
 
 logger = get_logger("cli")
 
@@ -66,7 +66,7 @@ def _check_configuration(report: HealthReport) -> None:
 
 
 def _check_directories(report: HealthReport) -> None:
-    from ..config import (
+    from .config import (
         CONFIG_DIR, DATA_DIR, EXTERNAL_DATA_DIR, LOGS_DIR,
         PROCESSED_DATA_DIR, PROJECT_ROOT, RAW_DATA_DIR,
     )
@@ -118,7 +118,7 @@ def _check_database(report: HealthReport, db_path: Path) -> None:
 
 
 def _log_file_path() -> Path:
-    from ..config import settings as s
+    from .config import settings as s
 
     return s.log_dir / s.log_file
 
@@ -139,7 +139,7 @@ def _check_logging(report: HealthReport) -> None:
 def run_health_checks(db_path=None) -> HealthReport:
     """Run all health checks and return the assembled report."""
     s = load_settings()
-    target = Path(db_path) if db_path else s.database_path
+    target = resolve_db_path(db_path)
     report = HealthReport()
     _check_configuration(report)
     _check_directories(report)

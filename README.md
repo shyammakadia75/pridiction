@@ -183,7 +183,8 @@ pridiction/
 │       ├── cleaning/__init__.py
 │       ├── ingestion/
 │       │   ├── __init__.py
-│       │   └── base.py      # BaseIngestor + IngestionResult (provider-agnostic)
+│       │   ├── base.py      # BaseIngestor + IngestionResult (provider-agnostic)
+│       │   └── statsbomb.py # StatsBombIngestor adapter
 │       └── validation/
 │           ├── __init__.py
 │           └── validators.py # ValidationResult + field/record validators
@@ -200,14 +201,25 @@ pridiction/
 └── README.md
 ```
 
-## Verified state (Part 1)
+## Verified state
 
+### Part 1 — Engineering Foundation
 - Editable install works; `football-intelligence --version` reports `0.1.0`.
 - `init-db` initializes the schema idempotently (schema version 1, FKs on).
 - `health` reports **Overall: OK** (configuration, directories, schema, foreign
   keys, database, and logging all green).
 - `pytest tests/` — **57 passed** (run against disposable `tmp_path` databases;
   no real database and no network access required).
+
+### Part 2 — StatsBomb Ingestion
+- `StatsBombIngestor` downloads, normalizes, validates, and persists match data
+  from the real StatsBomb Open Data repository (verified with Champions League
+  2018/2019 — Liverpool vs Tottenham, match 22912).
+- JSON cache under `data/raw/statsbomb/` with path-traversal protection.
+- Idempotent re-import (0 inserted, 1 updated on second run).
+- Provenance recorded in `data_sources` and `ingestion_runs` tables.
+- `pytest tests/` — **112 passed** (57 Part 1 + 55 Part 2; all network calls
+  mocked, no real data downloaded during tests).
 
 ## License
 

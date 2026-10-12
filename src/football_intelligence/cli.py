@@ -17,6 +17,7 @@ from typing import List, Optional
 from . import __version__
 from .config import load_settings
 from .data.ingestion.base import IngestionResult
+from .data.ingestion.odds import OddsIngestor, DEFAULT_TIMEOUT, list_leagues as list_odds_leagues
 from .data.ingestion.statsbomb import (
     StatsBombIngestor,
     list_competitions,
@@ -260,6 +261,57 @@ def cmd_statsbomb_import(args: argparse.Namespace) -> int:
     return 0 if result.is_success else 1
 
 
+# -- Odds subcommands ---------------------------------------------------
+
+
+def cmd_odds_list(args: argparse.Namespace) -> int:
+    """Print the list of supported Football-Data league codes."""
+    leagues = list_odds_leagues()
+    print("Available Football-Data league codes:")
+    for code, name in leagues:
+        print(f"  {code:4s}  {name}")
+    return 0
+
+
+def cmd_odds_import(args: argparse.Namespace) -> int:
+    """Import historical odds for a league and season."""
+    league_code = args.league_code
+    season_code = str(args.season_code)
+    ingestor = OddsIngestor(
+        league_code=league_code,
+        season_code=season_code,
+        db_path=args.db_path,
+        cache_dir=args.cache_dir,
+        refresh=args.refresh,
+        timeout=args.timeout,
+    )
+    source = "cache" if ingestor.was_cached else "network"
+    data = ingestor.retrieve()
+    print(
+        f"Retrieved {len(data)} odds record(s) "
+        f"(source: {source}, url: {ingestor.source_url})"
+    )
+    validation = ingestor.validate(data)
+    if validation.has_errors:
+        for issue in validation.issues:
+            print(f"  VALIDATION ERROR: {issue}")
+        print("Validation failed; aborting load.")
+        return 1
+    if validation.has_warnings:
+        for issue in validation.issues:
+            if issue.severity.value == "warning":
+                print(f"  WARNING: {issue}")
+    result = ingestor.load(data)
+    print(f"Records read:    {result.records_read}")
+    print(f"Records inserted: {result.records_inserted}")
+    print(f"Records updated:  {result.records_updated}")
+    print(f"Matches matched:  {result.records_matched}")
+    print(f"Matches unmatched: {result.records_unmatched}")
+    print(f"Matches ambiguous: {result.records_ambiguous}")
+    print(f"Status: {result.status}")
+    return 0 if result.is_success else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="football-intelligence",
@@ -333,6 +385,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="HTTP timeout in seconds (default 30).",
     )
     sb_import.set_defaults(func=cmd_statsbomb_import)
+
+    # -- Odds subcommand group --------------------------------------------
+    odds = subparsers.add_parser(
+        "odds", help="Football-Data.co.uk historical odds ingestion.",
+    )
+    odds_sub = odds.add_subparsers(dest="action", required=True)
+
+    odds_list = odds_sub.add_parser(
+        "list", help="List supported Football-Data league codes.",
+    )
+    odds_list.set_defaults(func=cmd_odds_list)
+
+    odds_import = odds_sub.add_parser(
+        "import", help="Import historical odds for a league and season.",
+    )
+    odds_import.add_argument(
+        "--league-code", type=str, required=True,
+        help="Football-Data league code (e.g. E0 for Premier League).",
+    )
+    odds_import.add_argument(
+        "season_code", type=str,
+        help="4-digit season code, e.g. 2324 for the 2023/24 season.",
+    )
+    odds_import.add_argument(
+        "--db-path", default=None,
+        help="Database path (defaults to configured path).",
+    )
+    odds_import.add_argument(
+        "--cache-dir", default=None,
+        help="Override the raw-file cache directory.",
+    )
+    odds_import.add_argument(
+        "--refresh", action="store_true",
+        help="Re-download even if cached.",
+    )
+    odds_import.add_argument(
+        "--timeout", type=int, default=DEFAULT_TIMEOUT,
+        help="HTTP timeout in seconds (default 30).",
+    )
+    odds_import.set_defaults(func=cmd_odds_import)
 
     return parser
 

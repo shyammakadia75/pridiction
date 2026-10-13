@@ -275,6 +275,7 @@ def cmd_odds_list(args: argparse.Namespace) -> int:
 
 def cmd_odds_import(args: argparse.Namespace) -> int:
     """Import historical odds for a league and season."""
+    setup_logging()
     league_code = args.league_code
     season_code = str(args.season_code)
     ingestor = OddsIngestor(
@@ -285,23 +286,30 @@ def cmd_odds_import(args: argparse.Namespace) -> int:
         refresh=args.refresh,
         timeout=args.timeout,
     )
-    data = ingestor.retrieve()
-    source = "cache" if ingestor.was_cached else "network"
-    print(
-        f"Retrieved {len(data)} odds record(s) "
-        f"(source: {source}, url: {ingestor.source_url})"
+    logger.info(
+        "Importing odds for league %s season %s",
+        ingestor.league_code, ingestor.season_code,
     )
-    validation = ingestor.validate(data)
-    if validation.has_errors:
-        for issue in validation.issues:
-            print(f"  VALIDATION ERROR: {issue}")
-        print("Validation failed; aborting load.")
+    try:
+        result = ingestor.ingest()
+    except IngestionError as exc:
+        failed = IngestionResult(
+            provider=ingestor.provider,
+            dataset_name=ingestor.dataset_name,
+            status="failed",
+            error_message=str(exc),
+            completed_at=datetime.now(timezone.utc).isoformat(),
+        )
+        _safe_record_run(args.db_path, failed)
+        logger.error("Import failed: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 1
-    if validation.has_warnings:
-        for issue in validation.issues:
-            if issue.severity.value == "warning":
-                print(f"  WARNING: {issue}")
-    result = ingestor.load(data)
+    source = "cache" if ingestor.was_cached else "network"
+    _safe_record_run(args.db_path, result)
+    print(
+        f"Selected: league={ingestor.league_code}, season={ingestor.season_code}"
+    )
+    print(f"Source: {ingestor.source_url} ({source})")
     print(f"Records read:    {result.records_read}")
     print(f"Records inserted: {result.records_inserted}")
     print(f"Records updated:  {result.records_updated}")

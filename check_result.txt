@@ -1,0 +1,3 @@
+features/engineering.py imports OK
+FeatureEngineer created, spec: FeatureSpec(lookback_windows=(5, 10), include_home_away_split=True, include_head_to_head=True)
+quality.py imports OK

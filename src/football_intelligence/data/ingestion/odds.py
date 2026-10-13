@@ -97,7 +97,7 @@ LEAGUE_CODES: dict[str, str] = {
     "N1": "Netherlands - Eredivisie",
     "B1": "Belgium - Pro League",
     "P1": "Portugal - Primeira Liga",
-        "T1": "Turkey - Super Lig",
+    "T1": "Turkey - Super Lig",
 }
 
 #: Columns expected in every Football-Data CSV (minimum required).
@@ -167,7 +167,7 @@ ODDS_COLUMN_MAP: dict[str, tuple[str, str, str, str]] = {
     "VCH":  ("vcbet",         "match_odds",     "home",  "opening"),
     "VCD":  ("vcbet",         "match_odds",     "draw",  "opening"),
     "VCA":  ("vcbet",         "match_odds",     "away",  "opening"),
-        "VCCH": ("vcbet",         "match_odds",     "home",  "closing"),
+    "VCCH": ("vcbet",         "match_odds",     "home",  "closing"),
     "VCCD": ("vcbet",         "match_odds",     "draw",  "closing"),
     "VCCA": ("vcbet",         "match_odds",     "away",  "closing"),
     # -- Market max / avg
@@ -227,7 +227,7 @@ def _http_get(url: str, timeout: int = DEFAULT_TIMEOUT) -> bytes:
             f"Network error fetching {url}: {reason}"
         ) from exc
     except TimeoutError as exc:
-                raise IngestionError(
+        raise IngestionError(
             f"Timeout ({timeout}s) fetching {url}"
         ) from exc
 
@@ -291,7 +291,7 @@ def _normalize_match_date(date_str: str) -> Optional[str]:
     date_str = date_str.strip()
     for fmt in ("%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"):
         try:
-                        return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+            return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
         except ValueError:
             continue
     return None
@@ -415,7 +415,7 @@ def _find_matches_for_reconciliation(
     canonical names from the StatsBomb ingestion.
     """
     matches = conn.execute(
-        "SELECT id, match_date, ht.team_name AS home_name, "
+        "SELECT m.id AS match_id, match_date, ht.team_name AS home_name, "
         "at.team_name AS away_name "
         "FROM matches m "
         "JOIN teams ht ON m.home_team_id = ht.id "
@@ -432,7 +432,7 @@ def _find_matches_for_reconciliation(
         db_home = _normalize_team_name(m["home_name"] or "")
         db_away = _normalize_team_name(m["away_name"] or "")
         if home_norm == db_home and away_norm == db_away:
-            found.append(int(m["id"]))
+            found.append(int(m["match_id"]))
     return found
 
 
@@ -497,7 +497,7 @@ def _record_data_source(
             retrieval_ts,
             None,  # football-data CSVs have no embedded version
             metadata_json,
-                        now,
+            now,
         ),
     )
 
@@ -546,15 +546,14 @@ def record_ingestion_run(db_path: Optional[Path], result: IngestionResult) -> No
             ),
         )
         logger.info(
-        "Recorded ingestion run: %s/%s status=%s read=%d inserted=%d updated=%d",
-        result.provider,
-        result.dataset_name,
-        result.status,
-        result.records_read,
-        result.records_inserted,
-        result.records_updated,
-    )
-
+            "Recorded ingestion run: %s/%s status=%s read=%d inserted=%d updated=%d",
+            result.provider,
+            result.dataset_name,
+            result.status,
+            result.records_read,
+            result.records_inserted,
+            result.records_updated,
+        )
 
 # ---------------------------------------------------------------------------
 # Ingestor
@@ -678,125 +677,6 @@ class OddsIngestor(BaseIngestor):
             all_records.extend(_extract_odds_records(row.to_dict()))
         self._odds_df = pd.DataFrame(all_records)
         return self._odds_df
-
-    def validate(self, data: pd.DataFrame) -> ValidationResult:
-        """Validate the long-format odds DataFrame before loading."""
-        result = ValidationResult(row_count=len(data))
-        result.merge(validate_required_columns(
-            data, ["match_date", "home_team", "away_team", "decimal_odds"]
-        ))
-        result.merge(validate_no_missing_values(
-            data, ["decimal_odds", "match_date", "home_team", "away_team"]
-        ))
-        result.merge(validate_positive_odds(data, "decimal_odds"))
-        return result
-
-    def load(self, data: pd.DataFrame) -> IngestionResult:
-        """Persist validated odds, returning insert / update / unmatched counts.
-
-        All odds records are written inside a single transaction.  Re-running
-        with the same data is idempotent: existing rows are updated, no
-        duplicates are created.
-        """
-        db_path = resolve_db_path(self._db_path)
-        now = _utcnow()
-        inserted = 0
-        updated = 0
-        matched_rows = 0
-        unmatched_rows = 0
-        ambiguous_rows = 0
-
-        match_keys = ["match_date", "home_team", "away_team"]
-        if not data.empty:
-            unique_matches = data[match_keys].drop_duplicates()
-        else:
-            unique_matches = pd.DataFrame(columns=match_keys)
-
-        metadata_json = json.dumps(
-            {
-                "league_code": self._league_code,
-                "season_code": self._season_code,
-                "record_count": len(data),
-                "retrieval_source": "cache" if self._was_cached else "network",
-            }
-        )
-
-        with database_connection(db_path) as conn:
-            _ensure_initialized(db_path, conn)
-            _record_data_source(
-                conn,
-                self._source_url,
-                self._retrieval_ts or now,
-                metadata_json,
-                now,
-            )
-            for _, mrow in unique_matches.iterrows():
-                match_date = mrow["match_date"]
-                home_team = mrow["home_team"]
-                away_team = mrow["away_team"]
-                found_ids = _find_matches_for_reconciliation(
-                    conn, match_date, home_team, away_team,
-                )
-                if not found_ids:
-                    unmatched_rows += 1
-                    logger.warning(
-                        "No match found for %s %s vs %s; skipping odds.",
-                        match_date, home_team, away_team,
-                    )
-                    continue
-                if len(found_ids) > 1:
-                    ambiguous_rows += 1
-                    logger.warning(
-                        "Multiple matches found for %s %s vs %s "
-                        "(ids=%s); skipping.",
-                        match_date, home_team, away_team, found_ids,
-                    )
-                    continue
-                match_id = int(found_ids[0])
-                matched_rows += 1
-                match_odds = data[
-                    (data["match_date"] == match_date)
-                    & (data["home_team"] == home_team)
-                    & (data["away_team"] == away_team)
-                ]
-                for _, orow in match_odds.iterrows():
-                    action = _upsert_odds(
-                        conn,
-                        match_id=match_id,
-                        provider=PROVIDER,
-                        bookmaker=orow["bookmaker"],
-                        market=orow["market"],
-                        selection=orow["selection"],
-                        odds_type=orow["odds_type"],
-                        decimal_odds=float(orow["decimal_odds"]),
-                        observed_at=self._retrieval_ts or now,
-                        source_reference=self._source_url,
-                        now=now,
-                    )
-                    if action == "inserted":
-                        inserted += 1
-                    else:
-                        updated += 1
-
-        total_matches = matched_rows + unmatched_rows + ambiguous_rows
-        logger.info(
-            "Loaded %d odds record(s): %d inserted, %d updated. "
-            "Matches: %d matched, %d unmatched, %d ambiguous (of %d unique).",
-            len(data), inserted, updated,
-            matched_rows, unmatched_rows, ambiguous_rows, total_matches,
-        )
-        return IngestionResult(
-            provider=PROVIDER,
-            dataset_name=self.dataset_name,
-            records_read=len(data),
-            records_inserted=inserted,
-            records_updated=updated,
-            records_matched=matched_rows,
-            records_unmatched=unmatched_rows,
-            records_ambiguous=ambiguous_rows,
-            records_skipped=unmatched_rows + ambiguous_rows,
-            status="success",
-        )
 
     def validate(self, data: pd.DataFrame) -> ValidationResult:
         """Validate the long-format odds DataFrame before loading."""

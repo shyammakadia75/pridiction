@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS odds (
     odds_type       TEXT    CHECK (odds_type IN ('opening', 'closing')),
     provider        TEXT,
     created_at      TEXT    NOT NULL,
+    updated_at      TEXT    NOT NULL,
     CONSTRAINT fk_odds_match FOREIGN KEY (match_id) REFERENCES matches (id),
     CONSTRAINT chk_decimal_odds_positive CHECK (decimal_odds > 0),
     CONSTRAINT chk_odds_type CHECK (odds_type IS NULL OR odds_type IN ('opening', 'closing'))
@@ -179,6 +180,7 @@ ODDS_MIGRATION_V2: Final[tuple[str, ...]] = (
     "ALTER TABLE odds ADD COLUMN odds_type TEXT "
     "CHECK (odds_type IN ('opening', 'closing'));",
     "ALTER TABLE odds ADD COLUMN provider TEXT;",
+    "ALTER TABLE odds ADD COLUMN updated_at TEXT;",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_odds_natural_key "
     "ON odds (match_id, provider, bookmaker, market, selection, odds_type, source_reference);",
 )

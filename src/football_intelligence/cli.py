@@ -285,8 +285,8 @@ def cmd_odds_import(args: argparse.Namespace) -> int:
         refresh=args.refresh,
         timeout=args.timeout,
     )
-    source = "cache" if ingestor.was_cached else "network"
     data = ingestor.retrieve()
+    source = "cache" if ingestor.was_cached else "network"
     print(
         f"Retrieved {len(data)} odds record(s) "
         f"(source: {source}, url: {ingestor.source_url})"

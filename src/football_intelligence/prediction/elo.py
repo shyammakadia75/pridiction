@@ -114,18 +114,48 @@ class EloModel:
         return 0.5
 
     def fit(self, df: pd.DataFrame, date_col: str = "match_date") -> "EloModel":
+        """Same-day-safe Elo fit (Phase 21 leakage fix).
+
+        All fixtures sharing a ``match_date`` are scored against the SAME
+        pre-date ratings; the zero-sum updates of each date are accumulated and
+        committed only after every same-date fixture has been scored, so a
+        fixture never observes the just-applied rating update of a
+        concurrently-played fixture -- matching the strict less-than-date
+        guarantee used by the Poisson model.
+        """
         ordered = df.sort_values(date_col).reset_index(drop=True)
         ratings: dict = {}
         history: list[EloMatch] = []
+        # Phase-21 same-day-leakage fix: all fixtures sharing a ``match_date``
+        # are scored against the SAME pre-date ratings; the daily zero-sum
+        # updates are accumulated and committed only AFTER every same-date
+        # fixture has been scored.  This guarantees a fixture never observes
+        # the just-applied rating update of a concurrently-played fixture.
+        cur_date = None
+        baseline: dict = {}
+        deltas: dict = {}
         for row in ordered.itertuples(index=False):
+            d = str(row.match_date)
+            if d != cur_date:
+                # Commit the previous date's batched updates, then open a fresh
+                # date with a clean pre-date baseline for every involved team.
+                for tid, base in baseline.items():
+                    ratings[tid] = base + deltas.get(tid, 0.0)
+                cur_date = d
+                baseline = {}
+                deltas = {}
             h = int(row.home_team_id)
             a = int(row.away_team_id)
-            rh = ratings.get(h, self.initial_rating)
-            ra = ratings.get(a, self.initial_rating)
+            # Baseline rating for this date -- captured once per date, so same-date
+            # opponents cannot influence one another on the same date.
+            baseline.setdefault(h, ratings.get(h, self.initial_rating))
+            baseline.setdefault(a, ratings.get(a, self.initial_rating))
+            rh = baseline[h]
+            ra = baseline[a]
             exp = 1.0 / (1.0 + 10.0 ** ((ra - rh - self.home_advantage) / 400.0))
             s = self._score(row.home_goals, row.away_goals)
             history.append(EloMatch(
-                match_date=str(row.match_date),
+                match_date=d,
                 home_team_id=h, away_team_id=a,
                 home_goals=row.home_goals, away_goals=row.away_goals,
                 home_rating=rh, away_rating=ra,
@@ -133,9 +163,13 @@ class EloModel:
                 outcome_label=compute_outcome_label(row.home_goals, row.away_goals),
             ))
             if s is not None:
-                # Zero-sum update: home gains K*(s - exp); away loses the same.
-                ratings[h] = rh + self.K * (s - exp)
-                ratings[a] = ra - self.K * (s - exp)
+                # Accumulate this date's zero-sum update; applied in batch at the
+                # next date boundary (or at flush) so it cannot leak intra-day.
+                deltas[h] = deltas.get(h, 0.0) + self.K * (s - exp)
+                deltas[a] = deltas.get(a, 0.0) - self.K * (s - exp)
+        # Flush the final date's updates.
+        for tid, base in baseline.items():
+            ratings[tid] = base + deltas.get(tid, 0.0)
         self.ratings_ = ratings
         self.history_ = history
         return self

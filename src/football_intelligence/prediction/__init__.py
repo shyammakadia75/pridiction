@@ -97,7 +97,13 @@ from .poisson import (
     DEFAULT_PRIOR_STRENGTH,
     DEFAULT_RATE_FLOOR,
 )
-
+from .comparison import (
+    ComparisonReport,
+    mcp_mcnemar_exact,
+    paired_bootstrap,
+    run_model_comparison,
+    save_comparison_report,
+)
 
 
 __all__ = [
@@ -144,4 +150,9 @@ __all__ = [
     "DEFAULT_MIN_HISTORY",
     "DEFAULT_PRIOR_STRENGTH",
     "DEFAULT_RATE_FLOOR",
+    "ComparisonReport",
+    "mcp_mcnemar_exact",
+    "paired_bootstrap",
+    "run_model_comparison",
+    "save_comparison_report",
 ]

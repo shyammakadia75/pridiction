@@ -38,6 +38,9 @@ from .prediction import (
     EvaluationReport,
     save_report,
     run_prediction_evaluation,
+    ComparisonReport,
+    run_model_comparison,
+    save_comparison_report,
 )
 from .prediction.elo import (
     EloModel,
@@ -528,6 +531,84 @@ def cmd_model_evaluate(args: argparse.Namespace) -> int:
     return rc
 
 
+def _fmt_metric(v) -> str:
+    """Format a numeric metric for the console summary (n/a for None)."""
+    return "n/a" if v is None else f"{float(v):.4f}"
+
+
+def _print_compare_summary(report: ComparisonReport) -> None:
+    d = report.dataset
+    print(f"model compare: n_test={d['n_test']} train={d['n_train']} val={d['n_val']} "
+          f"db_unchanged={report.production_db_unchanged}")
+    for nm in ("logistic_regression", "poisson", "elo"):
+        m = report.models[nm]
+        print(f"  {nm:<22} acc={_fmt_metric(m.get('accuracy'))} "
+              f"f1={_fmt_metric(m.get('macro_f1'))} "
+              f"brier={_fmt_metric(m.get('brier_score'))} "
+              f"brier_exp={_fmt_metric(m.get('brier_expected_score'))}")
+
+
+def cmd_model_compare(args: argparse.Namespace) -> int:
+    """football-intelligence model compare -- LR vs. Elo vs. Poisson (Phase 21)."""
+    setup_logging()
+    try:
+        db_path = resolve_db_path(args.db_path)
+    except Exception as exc:  # pragma: no cover - defensive
+        print(f"ERROR: cannot resolve database path: {exc}", file=sys.stderr)
+        return 1
+    if not Path(db_path).exists():
+        print(f"ERROR: database not found at '{db_path}' "
+              f"(run 'football-intelligence init-db').", file=sys.stderr)
+        return 1
+
+    seasons = args.season if args.season else [None]
+    rc = 0
+    for season_name in seasons:
+        label = season_name or "all-seasons"
+        try:
+            report = run_model_comparison(
+                db_path,
+                provider=args.provider,
+                provider_competition_id=args.competition_id,
+                season_name=season_name,
+                train_frac=args.train_frac,
+                val_frac=args.val_frac,
+                lr_learning_rate=args.lr_learning_rate,
+                lr_n_iterations=args.lr_n_iterations,
+                lr_l2_lambda=args.lr_l2_lambda,
+                lr_seed=args.lr_seed,
+                elo_K=args.elo_k_factor,
+                elo_home_advantage=args.elo_home_advantage,
+                elo_initial_rating=args.elo_initial_rating,
+                pois_max_goals=args.max_goals,
+                pois_min_history=args.min_history,
+                pois_prior_strength=args.prior_strength,
+                n_boot=args.n_bootstrap,
+                boot_seed=args.bootstrap_seed,
+            )
+        except (ValueError, RuntimeError, FileNotFoundError) as exc:
+            print(f"ERROR: comparison failed for {label} "
+                  f"(provider={args.provider}, competition={args.competition_id}): "
+                  f"{exc}", file=sys.stderr)
+            logger.exception("Phase-21 model comparison failed for %s", label)
+            rc = 1
+            continue
+        _print_compare_summary(report)
+
+        suffix = season_name.replace("/", "_") if season_name else "all"
+        name = f"phase21_comparison_{args.competition_id}_{suffix}"
+        try:
+            artifacts = save_comparison_report(report, args.output_dir, name=name)
+        except OSError as exc:
+            print(f"ERROR: could not write report to '{args.output_dir}': {exc}",
+                  file=sys.stderr)
+            rc = 1
+            continue
+        print(f"Saved: {artifacts['json']}")
+        print(f"Saved: {artifacts['txt']}")
+    return rc
+
+
 def cmd_ratings_elo(args: argparse.Namespace) -> int:
     """football-intelligence ratings elo -- chronological Elo ratings (read-only)."""
     setup_logging()
@@ -844,6 +925,48 @@ def build_parser() -> argparse.ArgumentParser:
     model_eval.add_argument('--lr-l2-lambda', dest='lr_l2_lambda', type=float, default=0.01)
     model_eval.add_argument('--lr-seed', dest='lr_seed', type=int, default=42)
     model_eval.set_defaults(func=cmd_model_evaluate)
+
+    # -- Model comparison subcommand (Phase 21) ---------------------------------
+    model_compare = model_sub.add_parser(
+        'compare', help='Phase-21: compare LR vs. Elo vs. Poisson on identical test fixtures (read-only).',
+    )
+    model_compare.add_argument('--db-path', default=None,
+        help='Database path (defaults to the configured production database, read-only).')
+    model_compare.add_argument('--provider', default='statsbomb',
+        help='Data provider name (default: statsbomb).')
+    model_compare.add_argument('--competition-id', dest='competition_id', type=str, default='2',
+        help="Provider competition id (default: '2' = StatsBomb Premier League).")
+    model_compare.add_argument('--season', dest='season', action='append', default=None,
+        help="Season name, e.g. '2015/16'. Repeat for multiple seasons; "
+             'omit to compare all seasons for the competition present in the database.')
+    model_compare.add_argument('--output-dir', dest='output_dir',
+        default=str(PROJECT_ROOT / 'reports' / 'phase21'),
+        help='Directory for JSON/TXT report artifacts (created if missing).')
+    model_compare.add_argument('--train-frac', dest='train_frac', type=float, default=0.60,
+        help='Fraction of rows for the chronological train split (default: 0.60).')
+    model_compare.add_argument('--val-frac', dest='val_frac', type=float, default=0.20,
+        help='Fraction of rows for the chronological validation split (default: 0.20).')
+    model_compare.add_argument('--lr-learning-rate', dest='lr_learning_rate', type=float, default=0.05)
+    model_compare.add_argument('--lr-n-iterations', dest='lr_n_iterations', type=int, default=1000)
+    model_compare.add_argument('--lr-l2-lambda', dest='lr_l2_lambda', type=float, default=0.01)
+    model_compare.add_argument('--lr-seed', dest='lr_seed', type=int, default=42)
+    model_compare.add_argument('--elo-k-factor', dest='elo_k_factor', type=float, default=20.0,
+        help='Elo K-factor in rating points (default: 20).')
+    model_compare.add_argument('--elo-home-advantage', dest='elo_home_advantage', type=float, default=50.0,
+        help='Elo home advantage in rating points (default: 50).')
+    model_compare.add_argument('--elo-initial-rating', dest='elo_initial_rating', type=float, default=1500.0,
+        help='Initial Elo rating for unseen teams (default: 1500).')
+    model_compare.add_argument('--max-goals', dest='max_goals', type=int, default=DEFAULT_MAX_GOALS,
+        help='Poisson scoreline grid depth (default: 8).')
+    model_compare.add_argument('--min-history', dest='min_history', type=int, default=DEFAULT_MIN_HISTORY,
+        help='Poisson min pre-match history before trusting team strength (default: 5).')
+    model_compare.add_argument('--prior-strength', dest='prior_strength', type=float, default=DEFAULT_PRIOR_STRENGTH,
+        help='Poisson fallback strength for insufficient history (default: 1.0).')
+    model_compare.add_argument('--n-bootstrap', dest='n_bootstrap', type=int, default=2000,
+        help='Paired bootstrap resamples for significance (default: 2000).')
+    model_compare.add_argument('--bootstrap-seed', dest='bootstrap_seed', type=int, default=42,
+        help='Seed for the paired bootstrap RNG (default: 42).')
+    model_compare.set_defaults(func=cmd_model_compare)
 
     # -- Ratings subcommand group (Phase 19) -----------------------------------
     ratings = subparsers.add_parser(

@@ -1,0 +1,2426 @@
+{
+  "dataset": {
+    "provider": "statsbomb",
+    "provider_competition_id": "2",
+    "season_name": null,
+    "n_matches": 380,
+    "n_train": 228,
+    "n_val": 76,
+    "n_test": 76,
+    "date_min": "2015-08-08",
+    "date_max": "2016-05-17",
+    "test_start_date": "2016-04-02",
+    "test_end_date": "2016-05-17",
+    "n_teams": 20
+  },
+  "split": {
+    "train_frac": 0.6,
+    "val_frac": 0.2,
+    "n_train": 228,
+    "n_val": 76,
+    "n_test": 76,
+    "date_col": "target_match_date",
+    "note": "Identical chronological test split for all three models on the held-out fixtures. LR trains on the train split only; Elo and Poisson are warmed on all pre-test (train+val) history."
+  },
+  "models": {
+    "logistic_regression": {
+      "log_loss": 1.2698858136372313,
+      "brier_score": 0.7081156600321062,
+      "accuracy": 0.4605263157894737,
+      "macro_f1": 0.3390522875816994,
+      "per_class_precision_recall": {
+        "home_win": {
+          "precision": 0.5813953488372093,
+          "recall": 0.6756756756756757,
+          "f1": 0.6250000000000001,
+          "support": 37,
+          "tp": 25,
+          "fp": 18,
+          "fn": 12
+        },
+        "draw": {
+          "precision": 0.37037037037037035,
+          "recall": 0.4166666666666667,
+          "f1": 0.39215686274509803,
+          "support": 24,
+          "tp": 10,
+          "fp": 17,
+          "fn": 14
+        },
+        "away_win": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 15,
+          "tp": 0,
+          "fp": 6,
+          "fn": 15
+        }
+      },
+      "calibration": {
+        "home_win": [
+          {
+            "bin_lower": 0.0,
+            "bin_upper": 0.2,
+            "count": 17,
+            "mean_predicted": 0.12222248874081935,
+            "observed_frequency": 0.47058823529411764
+          },
+          {
+            "bin_lower": 0.2,
+            "bin_upper": 0.4,
+            "count": 14,
+            "mean_predicted": 0.30219097213323154,
+            "observed_frequency": 0.2857142857142857
+          },
+          {
+            "bin_lower": 0.4,
+            "bin_upper": 0.6000000000000001,
+            "count": 15,
+            "mean_predicted": 0.5028007638687734,
+            "observed_frequency": 0.26666666666666666
+          },
+          {
+            "bin_lower": 0.6000000000000001,
+            "bin_upper": 0.8,
+            "count": 26,
+            "mean_predicted": 0.6970773661070804,
+            "observed_frequency": 0.7692307692307693
+          },
+          {
+            "bin_lower": 0.8,
+            "bin_upper": 1.0,
+            "count": 4,
+            "mean_predicted": 0.8605455680181033,
+            "observed_frequency": 0.25
+          }
+        ],
+        "draw": [
+          {
+            "bin_lower": 0.0,
+            "bin_upper": 0.2,
+            "count": 29,
+            "mean_predicted": 0.12825653483716148,
+            "observed_frequency": 0.3103448275862069
+          },
+          {
+            "bin_lower": 0.2,
+            "bin_upper": 0.4,
+            "count": 20,
+            "mean_predicted": 0.278508012349461,
+            "observed_frequency": 0.2
+          },
+          {
+            "bin_lower": 0.4,
+            "bin_upper": 0.6000000000000001,
+            "count": 15,
+            "mean_predicted": 0.4935436164874595,
+            "observed_frequency": 0.4666666666666667
+          },
+          {
+            "bin_lower": 0.6000000000000001,
+            "bin_upper": 0.8,
+            "count": 10,
+            "mean_predicted": 0.677900620915034,
+            "observed_frequency": 0.4
+          },
+          {
+            "bin_lower": 0.8,
+            "bin_upper": 1.0,
+            "count": 2,
+            "mean_predicted": 0.8284857489056034,
+            "observed_frequency": 0.0
+          }
+        ],
+        "away_win": [
+          {
+            "bin_lower": 0.0,
+            "bin_upper": 0.2,
+            "count": 47,
+            "mean_predicted": 0.11953670289235277,
+            "observed_frequency": 0.2978723404255319
+          },
+          {
+            "bin_lower": 0.2,
+            "bin_upper": 0.4,
+            "count": 21,
+            "mean_predicted": 0.2797552176903743,
+            "observed_frequency": 0.047619047619047616
+          },
+          {
+            "bin_lower": 0.4,
+            "bin_upper": 0.6000000000000001,
+            "count": 6,
+            "mean_predicted": 0.4543013760673928,
+            "observed_frequency": 0.0
+          },
+          {
+            "bin_lower": 0.6000000000000001,
+            "bin_upper": 0.8,
+            "count": 2,
+            "mean_predicted": 0.6178571286347954,
+            "observed_frequency": 0.0
+          }
+        ]
+      },
+      "confusion_matrix": [
+        [
+          25,
+          8,
+          4
+        ],
+        [
+          12,
+          10,
+          2
+        ],
+        [
+          6,
+          9,
+          0
+        ]
+      ],
+      "confusion_labels": [
+        "home_win",
+        "draw",
+        "away_win"
+      ],
+      "class_distribution": {
+        "counts": {
+          "home_win": 37,
+          "draw": 24,
+          "away_win": 15
+        },
+        "percentages": {
+          "home_win": 48.68421052631579,
+          "draw": 31.57894736842105,
+          "away_win": 19.736842105263158
+        },
+        "total": 76
+      },
+      "n_samples": 76,
+      "labels": [
+        "home_win",
+        "draw",
+        "away_win"
+      ],
+      "name": "logistic_regression",
+      "model_type": "categorical",
+      "brier_expected_score": null,
+      "config": {
+        "regime": "chronological_train_predict_test",
+        "n_train": 228,
+        "n_val": 76,
+        "n_test": 76,
+        "train_frac": 0.6,
+        "val_frac": 0.2,
+        "learning_rate": 0.01,
+        "n_iterations": 10000,
+        "l2_lambda": 0.01,
+        "random_state": 42,
+        "n_features": 48
+      }
+    },
+    "poisson": {
+      "log_loss": 0.9952291554531445,
+      "brier_score": 0.5967530892303907,
+      "accuracy": 0.5131578947368421,
+      "macro_f1": 0.38786256135653724,
+      "per_class_precision_recall": {
+        "home_win": {
+          "precision": 0.6086956521739131,
+          "recall": 0.7567567567567568,
+          "f1": 0.674698795180723,
+          "support": 37,
+          "tp": 28,
+          "fp": 18,
+          "fn": 9
+        },
+        "draw": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 24,
+          "tp": 0,
+          "fp": 0,
+          "fn": 24
+        },
+        "away_win": {
+          "precision": 0.36666666666666664,
+          "recall": 0.7333333333333333,
+          "f1": 0.4888888888888889,
+          "support": 15,
+          "tp": 11,
+          "fp": 19,
+          "fn": 4
+        }
+      },
+      "calibration": {
+        "home_win": [
+          {
+            "bin_lower": 0.0,
+            "bin_upper": 0.2,
+            "count": 10,
+            "mean_predicted": 0.16112471757231214,
+            "observed_frequency": 0.1
+          },
+          {
+            "bin_lower": 0.2,
+            "bin_upper": 0.4,
+            "count": 26,
+            "mean_predicted": 0.2931479042418709,
+            "observed_frequency": 0.34615384615384615
+          },
+          {
+            "bin_lower": 0.4,
+            "bin_upper": 0.6000000000000001,
+            "count": 28,
+            "mean_predicted": 0.4915906591002285,
+            "observed_frequency": 0.6428571428571429
+          },
+          {
+            "bin_lower": 0.6000000000000001,
+            "bin_upper": 0.8,
+            "count": 10,
+            "mean_predicted": 0.6996255273700746,
+            "observed_frequency": 0.8
+          },
+          {
+            "bin_lower": 0.8,
+            "bin_upper": 1.0,
+            "count": 2,
+            "mean_predicted": 0.8363409117422806,
+            "observed_frequency": 0.5
+          }
+        ],
+        "draw": [
+          {
+            "bin_lower": 0.0,
+            "bin_upper": 0.2,
+            "count": 12,
+            "mean_predicted": 0.1696892794754508,
+            "observed_frequency": 0.25
+          },
+          {
+            "bin_lower": 0.2,
+            "bin_upper": 0.4,
+            "count": 64,
+            "mean_predicted": 0.2663166192518149,
+            "observed_frequency": 0.328125
+          }
+        ],
+        "away_win": [
+          {
+            "bin_lower": 0.0,
+            "bin_upper": 0.2,
+            "count": 19,
+            "mean_predicted": 0.11660561262791998,
+            "observed_frequency": 0.10526315789473684
+          },
+          {
+            "bin_lower": 0.2,
+            "bin_upper": 0.4,
+            "count": 30,
+            "mean_predicted": 0.2925889220119459,
+            "observed_frequency": 0.06666666666666667
+          },
+          {
+            "bin_lower": 0.4,
+            "bin_upper": 0.6000000000000001,
+            "count": 21,
+            "mean_predicted": 0.4984562468628916,
+            "observed_frequency": 0.42857142857142855
+          },
+          {
+            "bin_lower": 0.6000000000000001,
+            "bin_upper": 0.8,
+            "count": 6,
+            "mean_predicted": 0.6320235486275654,
+            "observed_frequency": 0.3333333333333333
+          }
+        ]
+      },
+      "confusion_matrix": [
+        [
+          28,
+          0,
+          9
+        ],
+        [
+          14,
+          0,
+          10
+        ],
+        [
+          4,
+          0,
+          11
+        ]
+      ],
+      "confusion_labels": [
+        "home_win",
+        "draw",
+        "away_win"
+      ],
+      "class_distribution": {
+        "counts": {
+          "home_win": 37,
+          "draw": 24,
+          "away_win": 15
+        },
+        "percentages": {
+          "home_win": 48.68421052631579,
+          "draw": 31.57894736842105,
+          "away_win": 19.736842105263158
+        },
+        "total": 76
+      },
+      "n_samples": 76,
+      "labels": [
+        "home_win",
+        "draw",
+        "away_win"
+      ],
+      "name": "poisson",
+      "model_type": "categorical",
+      "brier_expected_score": null,
+      "config": {
+        "regime": "online_chronological",
+        "max_goals": 8,
+        "min_history": 5,
+        "prior_strength": 1.0,
+        "n_test": 76
+      }
+    },
+    "elo": {
+      "n_samples": 76,
+      "log_loss": null,
+      "brier_score": null,
+      "brier_expected_score": 0.13115472989543553,
+      "accuracy": 0.5131578947368421,
+      "macro_f1": 0.4771161364176333,
+      "per_class_precision_recall": {
+        "home_win": {
+          "precision": 0.65625,
+          "recall": 0.5675675675675675,
+          "f1": 0.6086956521739131,
+          "support": 37,
+          "tp": 21,
+          "fp": 11,
+          "fn": 16
+        },
+        "draw": {
+          "precision": 0.3783783783783784,
+          "recall": 0.5833333333333334,
+          "f1": 0.45901639344262296,
+          "support": 24,
+          "tp": 14,
+          "fp": 23,
+          "fn": 10
+        },
+        "away_win": {
+          "precision": 0.5714285714285714,
+          "recall": 0.26666666666666666,
+          "f1": 0.36363636363636365,
+          "support": 15,
+          "tp": 4,
+          "fp": 3,
+          "fn": 11
+        }
+      },
+      "confusion_matrix": [
+        [
+          21,
+          15,
+          1
+        ],
+        [
+          8,
+          14,
+          2
+        ],
+        [
+          3,
+          8,
+          4
+        ]
+      ],
+      "confusion_labels": [
+        "home_win",
+        "draw",
+        "away_win"
+      ],
+      "class_distribution": {
+        "counts": {
+          "home_win": 37,
+          "draw": 24,
+          "away_win": 15
+        },
+        "percentages": {
+          "home_win": 48.68421052631579,
+          "draw": 31.57894736842105,
+          "away_win": 19.736842105263158
+        },
+        "total": 76
+      },
+      "calibration": {
+        "home_win": [],
+        "draw": [],
+        "away_win": []
+      },
+      "labels": [
+        "home_win",
+        "draw",
+        "away_win"
+      ],
+      "name": "elo",
+      "model_type": "expected_score_thresholded",
+      "config": {
+        "regime": "online_chronological",
+        "K": 20.0,
+        "home_advantage": 50.0,
+        "initial_rating": 1500.0,
+        "home_win_threshold": 0.6,
+        "away_win_threshold": 0.4,
+        "n_test": 76
+      }
+    }
+  },
+  "paired": [
+    {
+      "pair": [
+        "logistic_regression",
+        "poisson"
+      ],
+      "mcnemar_accuracy": {
+        "n01": 17,
+        "n10": 13,
+        "n_discordant": 30,
+        "statistic": 0.3,
+        "p_value": 0.584664711728692
+      },
+      "bootstrap_accuracy": {
+        "mean_diff": 0.05263157894736842,
+        "ci_low_95": -0.07894736842105268,
+        "ci_high_95": 0.18421052631578952,
+        "p_value": 0.436,
+        "n_boot": 500,
+        "n_samples": 76
+      },
+      "bootstrap_brier": {
+        "mean_diff": 0.11136257080171558,
+        "ci_low_95": -0.002852597683878075,
+        "ci_high_95": 0.23258751439313574,
+        "p_value": 0.06,
+        "n_boot": 500,
+        "n_samples": 76
+      }
+    },
+    {
+      "pair": [
+        "logistic_regression",
+        "elo"
+      ],
+      "mcnemar_accuracy": {
+        "n01": 14,
+        "n10": 10,
+        "n_discordant": 24,
+        "statistic": 0.375,
+        "p_value": 0.5412561893463135
+      },
+      "bootstrap_accuracy": {
+        "mean_diff": 0.05263157894736842,
+        "ci_low_95": -0.052631578947368474,
+        "ci_high_95": 0.1710526315789474,
+        "p_value": 0.436,
+        "n_boot": 500,
+        "n_samples": 76
+      },
+      "bootstrap_brier": null
+    },
+    {
+      "pair": [
+        "elo",
+        "poisson"
+      ],
+      "mcnemar_accuracy": {
+        "n01": 15,
+        "n10": 15,
+        "n_discordant": 30,
+        "statistic": 0.03333333333333333,
+        "p_value": 1.0
+      },
+      "bootstrap_accuracy": {
+        "mean_diff": 0.0,
+        "ci_low_95": -0.13157894736842107,
+        "ci_high_95": 0.13848684210526285,
+        "p_value": 1.0,
+        "n_boot": 500,
+        "n_samples": 76
+      },
+      "bootstrap_brier": null
+    }
+  ],
+  "predictions": [
+    {
+      "match_date": "2016-04-02",
+      "home_team_id": 4,
+      "away_team_id": 16,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.709780997578159,
+        0.13048182894262078,
+        0.15973717347922023
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4942158120035515,
+        0.2999073962990667,
+        0.2058767916973818
+      ],
+      "elo_expected_home": 0.6919392674954832,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-02",
+      "home_team_id": 5,
+      "away_team_id": 3,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.3001435666066192,
+        0.5550554364888176,
+        0.14480099690456308
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.14467162043821696,
+        0.2472598112549257,
+        0.6080685683068574
+      ],
+      "elo_expected_home": 0.37182047951149155,
+      "elo_pred": 2,
+      "elo_pred_label": "away_win"
+    },
+    {
+      "match_date": "2016-04-02",
+      "home_team_id": 8,
+      "away_team_id": 12,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 2,
+      "logistic_regression_pred_label": "away_win",
+      "logistic_regression_proba": [
+        0.2815962785943947,
+        0.10390538396035032,
+        0.6144983374452551
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.3965451559469443,
+        0.3334155455003982,
+        0.2700392985526576
+      ],
+      "elo_expected_home": 0.4995504182440578,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-02",
+      "home_team_id": 11,
+      "away_team_id": 6,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7096704727570942,
+        0.10799610193860457,
+        0.18233342530430136
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.2896332268199654,
+        0.2936171979900312,
+        0.4167495751900035
+      ],
+      "elo_expected_home": 0.5286517187545537,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-02",
+      "home_team_id": 17,
+      "away_team_id": 13,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6985628124399622,
+        0.14985592765131148,
+        0.15158125990872623
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.7058153464813226,
+        0.19606013223841845,
+        0.09812452128025893
+      ],
+      "elo_expected_home": 0.5829448208966045,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-02",
+      "home_team_id": 18,
+      "away_team_id": 7,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.5293255949030925,
+        0.1980261598828266,
+        0.27264824521408093
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.40903205083973765,
+        0.29486823206642293,
+        0.29609971709383937
+      ],
+      "elo_expected_home": 0.6323045175310745,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-02",
+      "home_team_id": 20,
+      "away_team_id": 15,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.4842310296902162,
+        0.06414852762922411,
+        0.4516204426805596
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4792175074404531,
+        0.2681705809373962,
+        0.25261191162215063
+      ],
+      "elo_expected_home": 0.7204293843093363,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-03",
+      "home_team_id": 10,
+      "away_team_id": 9,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.1540020008948151,
+        0.4851308173515591,
+        0.36086718175362587
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4439329026681781,
+        0.3188578113112922,
+        0.23720928602052976
+      ],
+      "elo_expected_home": 0.6836112154721938,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-03",
+      "home_team_id": 19,
+      "away_team_id": 14,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.730383663184142,
+        0.09812177265796672,
+        0.17149456415789122
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.40206506819726695,
+        0.3416914547106949,
+        0.2562434770920382
+      ],
+      "elo_expected_home": 0.6402278961416612,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-09",
+      "home_team_id": 7,
+      "away_team_id": 3,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.03457442018272392,
+        0.6780320219676532,
+        0.2873935578496229
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.2239736567474382,
+        0.29585422327746025,
+        0.48017211997510156
+      ],
+      "elo_expected_home": 0.4974216469681482,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-09",
+      "home_team_id": 6,
+      "away_team_id": 12,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6823428453181393,
+        0.18322895181478818,
+        0.13442820286707258
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.6493372959115676,
+        0.21796456786948562,
+        0.1326981362189467
+      ],
+      "elo_expected_home": 0.6311237357811933,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-09",
+      "home_team_id": 16,
+      "away_team_id": 14,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6512780674792237,
+        0.15999291562750875,
+        0.18872901689326757
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.19937187722745858,
+        0.3167086042452431,
+        0.48391951852729836
+      ],
+      "elo_expected_home": 0.5446999184285117,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-09",
+      "home_team_id": 5,
+      "away_team_id": 11,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.4422381282292225,
+        0.5314286156508257,
+        0.02633325611995181
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.17953630705511725,
+        0.2391436393510749,
+        0.5813200535938078
+      ],
+      "elo_expected_home": 0.4127310362613209,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-09",
+      "home_team_id": 15,
+      "away_team_id": 17,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6089471076051121,
+        0.16450132655154778,
+        0.2265515658433402
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.48261084840173324,
+        0.2703348425646223,
+        0.2470543090336444
+      ],
+      "elo_expected_home": 0.5744683061969413,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-09",
+      "home_team_id": 20,
+      "away_team_id": 4,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.1876277950863584,
+        0.5177353236926416,
+        0.294636881221
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.3374648129130475,
+        0.24098067039670665,
+        0.4215545166902459
+      ],
+      "elo_expected_home": 0.5469262191250873,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-09",
+      "home_team_id": 9,
+      "away_team_id": 13,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.5479967266039866,
+        0.232428412526611,
+        0.21957486086940248
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.8398593965590542,
+        0.11342404057819802,
+        0.04671656286274783
+      ],
+      "elo_expected_home": 0.7091162421029885,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-10",
+      "home_team_id": 1,
+      "away_team_id": 19,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6963858795696933,
+        0.19242524961450638,
+        0.11118887081580033
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5913004841019345,
+        0.24288955190569345,
+        0.16580996399237213
+      ],
+      "elo_expected_home": 0.6344579303850744,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-10",
+      "home_team_id": 2,
+      "away_team_id": 18,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7291204573085378,
+        0.20616159269787543,
+        0.06471794999358667
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4081574114555865,
+        0.27159239234718396,
+        0.3202501961972295
+      ],
+      "elo_expected_home": 0.5840133954441273,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-10",
+      "home_team_id": 8,
+      "away_team_id": 10,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.33840989019574275,
+        0.3403866300533243,
+        0.32120347975093294
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.18491365305888294,
+        0.2488754998566576,
+        0.5662108470844595
+      ],
+      "elo_expected_home": 0.32746053105635564,
+      "elo_pred": 2,
+      "elo_pred_label": "away_win"
+    },
+    {
+      "match_date": "2016-04-13",
+      "home_team_id": 15,
+      "away_team_id": 14,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.504507424597067,
+        0.2604363423262412,
+        0.2350562330766918
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.1554393360439935,
+        0.2414664221991014,
+        0.6030942417569051
+      ],
+      "elo_expected_home": 0.5269381600522516,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-16",
+      "home_team_id": 17,
+      "away_team_id": 8,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.39656903889135253,
+        0.40580440407932455,
+        0.19762655702932289
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5679258641136163,
+        0.19482909135985238,
+        0.23724504452653114
+      ],
+      "elo_expected_home": 0.5667029639068408,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-16",
+      "home_team_id": 19,
+      "away_team_id": 5,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7380582121554625,
+        0.12332123915010526,
+        0.1386205486944323
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.7801179946340522,
+        0.1765393033081312,
+        0.043342702057816596
+      ],
+      "elo_expected_home": 0.7840102624314387,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-16",
+      "home_team_id": 3,
+      "away_team_id": 6,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.8360600725868643,
+        0.03395551328443,
+        0.1299844141287057
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.31482620197930183,
+        0.2614390949023393,
+        0.4237347031183588
+      ],
+      "elo_expected_home": 0.5374345615019431,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-16",
+      "home_team_id": 12,
+      "away_team_id": 16,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.4765490941759087,
+        0.38192456241206263,
+        0.14152634341202883
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.37414109317306443,
+        0.2771548778092727,
+        0.3487040290176629
+      ],
+      "elo_expected_home": 0.6036246379720387,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-16",
+      "home_team_id": 13,
+      "away_team_id": 7,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.23324095296591274,
+        0.5450125809926554,
+        0.22174646604143186
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4137611105692692,
+        0.2458369091768377,
+        0.34040198025389323
+      ],
+      "elo_expected_home": 0.4606182414882846,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-16",
+      "home_team_id": 14,
+      "away_team_id": 9,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.9078802746375824,
+        0.04197040841199449,
+        0.050149316950423156
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.3620189417818624,
+        0.2780660525909712,
+        0.3599150056271664
+      ],
+      "elo_expected_home": 0.5096197148820789,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-17",
+      "home_team_id": 10,
+      "away_team_id": 20,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.20961519207009444,
+        0.5607577327414769,
+        0.22962707518842868
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4386587363041027,
+        0.25363096488334774,
+        0.3077102988125495
+      ],
+      "elo_expected_home": 0.6739855371545469,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-17",
+      "home_team_id": 11,
+      "away_team_id": 2,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6427036801399878,
+        0.22778177829473276,
+        0.12951454156527936
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.20305212961714636,
+        0.19516442364732806,
+        0.6017834467355255
+      ],
+      "elo_expected_home": 0.5132383379102446,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-17",
+      "home_team_id": 4,
+      "away_team_id": 15,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6795936423137444,
+        0.15921971769204193,
+        0.16118663999421362
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5590891447228983,
+        0.26895955373911307,
+        0.17195130153798868
+      ],
+      "elo_expected_home": 0.7221023010200727,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-18",
+      "home_team_id": 18,
+      "away_team_id": 1,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.16897637567055931,
+        0.6345042275732058,
+        0.19651939675623498
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.15993766265506215,
+        0.2509462566272962,
+        0.5891160807176417
+      ],
+      "elo_expected_home": 0.44075201373278977,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-19",
+      "home_team_id": 13,
+      "away_team_id": 6,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.2617078160164164,
+        0.5014932479678839,
+        0.23679893601569968
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.25765880858421303,
+        0.2688386763485413,
+        0.4735025150672456
+      ],
+      "elo_expected_home": 0.38276049152884317,
+      "elo_pred": 2,
+      "elo_pred_label": "away_win"
+    },
+    {
+      "match_date": "2016-04-20",
+      "home_team_id": 2,
+      "away_team_id": 14,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.761019550198934,
+        0.1476163639468832,
+        0.09136408585418279
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.26855973719812026,
+        0.2583070398922692,
+        0.4731332229096105
+      ],
+      "elo_expected_home": 0.6543220527699495,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-20",
+      "home_team_id": 19,
+      "away_team_id": 15,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 2,
+      "logistic_regression_pred_label": "away_win",
+      "logistic_regression_proba": [
+        0.19757927327516794,
+        0.3668145018520118,
+        0.4356062248728203
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5638795087979279,
+        0.30628589064590794,
+        0.12983460055616422
+      ],
+      "elo_expected_home": 0.6887596315862481,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-20",
+      "home_team_id": 20,
+      "away_team_id": 16,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.720616782463763,
+        0.20887909938089438,
+        0.07050411815534262
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5150939395057432,
+        0.24526497333043695,
+        0.23964108716381977
+      ],
+      "elo_expected_home": 0.6749918360757935,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-21",
+      "home_team_id": 4,
+      "away_team_id": 12,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7132763582978908,
+        0.08785870630115009,
+        0.19886493540095918
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5526012455748391,
+        0.31375812403852354,
+        0.13364063038663737
+      ],
+      "elo_expected_home": 0.6903680048042974,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-23",
+      "home_team_id": 5,
+      "away_team_id": 9,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.2605468084675838,
+        0.7071593986550978,
+        0.03229379287731836
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.13819767761191473,
+        0.30062599253407346,
+        0.5611763298540118
+      ],
+      "elo_expected_home": 0.33898513389129986,
+      "elo_pred": 2,
+      "elo_pred_label": "away_win"
+    },
+    {
+      "match_date": "2016-04-23",
+      "home_team_id": 6,
+      "away_team_id": 18,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7366453294297446,
+        0.23104824646981134,
+        0.03230642410044414
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.7014555949330435,
+        0.16857943447918805,
+        0.12996497058776843
+      ],
+      "elo_expected_home": 0.6431554646287008,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-23",
+      "home_team_id": 2,
+      "away_team_id": 13,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6505376954383645,
+        0.19562368453290735,
+        0.15383862002872833
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.8328224269255072,
+        0.11538300900835721,
+        0.05179456406613559
+      ],
+      "elo_expected_home": 0.7353809578456248,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-23",
+      "home_team_id": 11,
+      "away_team_id": 3,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.5669934551280542,
+        0.37685026778118974,
+        0.056156277090755984
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.20547950641186957,
+        0.23262319257494699,
+        0.5618973010131835
+      ],
+      "elo_expected_home": 0.534605793005774,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-24",
+      "home_team_id": 8,
+      "away_team_id": 4,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 2,
+      "logistic_regression_pred_label": "away_win",
+      "logistic_regression_proba": [
+        0.27179306377911056,
+        0.31227745214530933,
+        0.4159294840755801
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.21644215077378365,
+        0.23620324521446515,
+        0.5473546040117513
+      ],
+      "elo_expected_home": 0.3984679904322489,
+      "elo_pred": 2,
+      "elo_pred_label": "away_win"
+    },
+    {
+      "match_date": "2016-04-24",
+      "home_team_id": 10,
+      "away_team_id": 7,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7701018537855852,
+        0.13950186025561329,
+        0.09039628595880148
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5986807070015963,
+        0.22584357365312852,
+        0.17547571934527512
+      ],
+      "elo_expected_home": 0.7528966972998692,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-25",
+      "home_team_id": 1,
+      "away_team_id": 12,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.4056369961732725,
+        0.520112306061363,
+        0.07425069776536446
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.6682154320933054,
+        0.23940245529213203,
+        0.09238211261456263
+      ],
+      "elo_expected_home": 0.7505699612157836,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-30",
+      "home_team_id": 4,
+      "away_team_id": 17,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.536717694684016,
+        0.07734131592149536,
+        0.38594098939448873
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.7664200692267792,
+        0.17179049687752132,
+        0.06178943389569962
+      ],
+      "elo_expected_home": 0.7550461523533565,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-30",
+      "home_team_id": 12,
+      "away_team_id": 20,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.3907061424171887,
+        0.42161373800117075,
+        0.18768011958164066
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.23430561338954287,
+        0.2401640801177267,
+        0.5255303064927305
+      ],
+      "elo_expected_home": 0.4487694937401568,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-30",
+      "home_team_id": 13,
+      "away_team_id": 15,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 2,
+      "logistic_regression_pred_label": "away_win",
+      "logistic_regression_proba": [
+        0.3981346946603281,
+        0.167621737473145,
+        0.4342435678665269
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4148707643650609,
+        0.25728013588675486,
+        0.32784909974818416
+      ],
+      "elo_expected_home": 0.5414144870249045,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-30",
+      "home_team_id": 14,
+      "away_team_id": 11,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6435585116699968,
+        0.19367637884015662,
+        0.1627651094898465
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4654954038617453,
+        0.21335125151498824,
+        0.3211533446232664
+      ],
+      "elo_expected_home": 0.5774563703808374,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-04-30",
+      "home_team_id": 16,
+      "away_team_id": 5,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6166844013893379,
+        0.0418681648014108,
+        0.34144743380925136
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5525646687771749,
+        0.30482974196440155,
+        0.14260558925842365
+      ],
+      "elo_expected_home": 0.7195407237526485,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-04-30",
+      "home_team_id": 18,
+      "away_team_id": 8,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.5312276088077325,
+        0.16877275815392126,
+        0.29999963303834626
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.46964646195042775,
+        0.23067565060664877,
+        0.2996778874429235
+      ],
+      "elo_expected_home": 0.6308405180180262,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-01",
+      "home_team_id": 7,
+      "away_team_id": 2,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 2,
+      "logistic_regression_pred_label": "away_win",
+      "logistic_regression_proba": [
+        0.08585340696086233,
+        0.29293067321480193,
+        0.6212159198243358
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.24166245434530564,
+        0.26697818538163687,
+        0.49135936027305754
+      ],
+      "elo_expected_home": 0.4651021910521365,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-01",
+      "home_team_id": 9,
+      "away_team_id": 6,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.22492068455746347,
+        0.4020674339270736,
+        0.37301188151546283
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.3514027023011015,
+        0.28627463685091453,
+        0.362322660847984
+      ],
+      "elo_expected_home": 0.5356528447899501,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-01",
+      "home_team_id": 19,
+      "away_team_id": 10,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.021501861946639046,
+        0.675776002982197,
+        0.30272213507116397
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.3969498931298574,
+        0.3609356863285042,
+        0.2421144205416385
+      ],
+      "elo_expected_home": 0.46310398065759,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-02",
+      "home_team_id": 3,
+      "away_team_id": 1,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.3365483213101859,
+        0.4980652246574552,
+        0.1653864540323588
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.12378123293887336,
+        0.17200563787044043,
+        0.7042131291906862
+      ],
+      "elo_expected_home": 0.45115798983137406,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-07",
+      "home_team_id": 5,
+      "away_team_id": 13,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.17793551985556372,
+        0.6734336287331575,
+        0.1486308514112788
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.39653394223138094,
+        0.2829512223986918,
+        0.32051483536992736
+      ],
+      "elo_expected_home": 0.44441326242004986,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-07",
+      "home_team_id": 8,
+      "away_team_id": 3,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.5929404126006904,
+        0.2038121754083431,
+        0.20324741199096638
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.23215904838482454,
+        0.29652010232757403,
+        0.4713208492876014
+      ],
+      "elo_expected_home": 0.4733808360612369,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-07",
+      "home_team_id": 10,
+      "away_team_id": 14,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.8734361152593031,
+        0.09160592914950182,
+        0.03495795559119509
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.44121766026109255,
+        0.2703688656364056,
+        0.2884134741025019
+      ],
+      "elo_expected_home": 0.7489927665620678,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-07",
+      "home_team_id": 11,
+      "away_team_id": 12,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.8248058095886631,
+        0.15925775092154168,
+        0.015936439489795232
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.321813441943708,
+        0.3007509295607115,
+        0.37743562849558054
+      ],
+      "elo_expected_home": 0.572212999674029,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-07",
+      "home_team_id": 15,
+      "away_team_id": 18,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7042513783757218,
+        0.23237599469369735,
+        0.06337262693058085
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.35951702701595317,
+        0.3028392967113058,
+        0.33764367627274106
+      ],
+      "elo_expected_home": 0.5006612645252388,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-07",
+      "home_team_id": 17,
+      "away_team_id": 19,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.18595847227080525,
+        0.6992417434727046,
+        0.11479978425649004
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.3124631155569836,
+        0.2570239781351423,
+        0.43051290630787425
+      ],
+      "elo_expected_home": 0.3810861902452959,
+      "elo_pred": 2,
+      "elo_pred_label": "away_win"
+    },
+    {
+      "match_date": "2016-05-07",
+      "home_team_id": 20,
+      "away_team_id": 7,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.15127528441805665,
+        0.8127567054844593,
+        0.03596801009748393
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.6331426582763938,
+        0.20158958032107724,
+        0.165267761402529
+      ],
+      "elo_expected_home": 0.6838864280359667,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-08",
+      "home_team_id": 1,
+      "away_team_id": 9,
+      "y_true": 2,
+      "y_true_label": "away_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.45040252764654026,
+        0.35413542923497165,
+        0.1954620431184882
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5404242049349858,
+        0.290131687584403,
+        0.16944410748061112
+      ],
+      "elo_expected_home": 0.652474884050114,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-08",
+      "home_team_id": 2,
+      "away_team_id": 16,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7509985593217473,
+        0.18080143742592936,
+        0.06820000325232328
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5417686577932807,
+        0.23176836198792974,
+        0.2264629802187896
+      ],
+      "elo_expected_home": 0.6560348079039486,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-08",
+      "home_team_id": 6,
+      "away_team_id": 4,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.4486497042952048,
+        0.24437947108697539,
+        0.30697082461781994
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5278675360340657,
+        0.20391043443198,
+        0.26822202953395435
+      ],
+      "elo_expected_home": 0.540236690932969,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-10",
+      "home_team_id": 20,
+      "away_team_id": 19,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.13241452596354567,
+        0.8442147923267475,
+        0.023370681709706926
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.44232800485974333,
+        0.2527679390598522,
+        0.30490405608040444
+      ],
+      "elo_expected_home": 0.5643647121852374,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-11",
+      "home_team_id": 2,
+      "away_team_id": 3,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7090250802410449,
+        0.2231125097744626,
+        0.06786240998449246
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.40102160436797374,
+        0.2483285398911015,
+        0.3506498557409249
+      ],
+      "elo_expected_home": 0.616768280846448,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-11",
+      "home_team_id": 8,
+      "away_team_id": 14,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.326741159332848,
+        0.5561089071067256,
+        0.11714993356042643
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.2831338438198288,
+        0.2913451343969339,
+        0.42552102178323736
+      ],
+      "elo_expected_home": 0.5467839779872632,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-11",
+      "home_team_id": 17,
+      "away_team_id": 16,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6496354014477378,
+        0.2658409147677803,
+        0.08452368378448187
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.362711794140394,
+        0.26756846927339734,
+        0.3697197365862087
+      ],
+      "elo_expected_home": 0.48858814563985375,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 3,
+      "away_team_id": 10,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.4459321275730192,
+        0.41492836099814556,
+        0.13913951142883518
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.16522313403448155,
+        0.18501444440514261,
+        0.6497624215603759
+      ],
+      "elo_expected_home": 0.4039699477468387,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 4,
+      "away_team_id": 5,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.7382298562148828,
+        0.021171996777295133,
+        0.24059814700782198
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.7854160323888715,
+        0.16259119907513173,
+        0.051992768535996874
+      ],
+      "elo_expected_home": 0.8277949199783436,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 7,
+      "away_team_id": 6,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.1282501240897438,
+        0.7128898172456858,
+        0.15886005866457042
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.2500550187618376,
+        0.3142949674300611,
+        0.43565001380810126
+      ],
+      "elo_expected_home": 0.49650203919980046,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 18,
+      "away_team_id": 20,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.05858269449520994,
+        0.7456693587812782,
+        0.19574794672351203
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.20783554687453273,
+        0.23504851984920405,
+        0.5571159332762633
+      ],
+      "elo_expected_home": 0.45393057611755844,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 9,
+      "away_team_id": 15,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.578662932923578,
+        0.24520004282328642,
+        0.1761370242531357
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.5521714030612778,
+        0.23328702664736933,
+        0.214541570291353
+      ],
+      "elo_expected_home": 0.7104592366804199,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 13,
+      "away_team_id": 1,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 2,
+      "logistic_regression_pred_label": "away_win",
+      "logistic_regression_proba": [
+        0.10797370649503314,
+        0.36338415004483704,
+        0.5286421434601298
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.16017467465912036,
+        0.21460584112583794,
+        0.6252194842150417
+      ],
+      "elo_expected_home": 0.35573510433598743,
+      "elo_pred": 2,
+      "elo_pred_label": "away_win"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 14,
+      "away_team_id": 17,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.10556457616315211,
+        0.6148472496218966,
+        0.2795881742149512
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.666658935449087,
+        0.1848901408577003,
+        0.14845092369321267
+      ],
+      "elo_expected_home": 0.6425069346318748,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 16,
+      "away_team_id": 8,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.05239348895648623,
+        0.4878401175947739,
+        0.45976639344873993
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.4949397428411342,
+        0.2580202854079658,
+        0.2470399717509001
+      ],
+      "elo_expected_home": 0.55005367063711,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-15",
+      "home_team_id": 12,
+      "away_team_id": 2,
+      "y_true": 1,
+      "y_true_label": "draw",
+      "logistic_regression_pred": 1,
+      "logistic_regression_pred_label": "draw",
+      "logistic_regression_proba": [
+        0.12731878186920637,
+        0.6374527601174634,
+        0.23522845801333023
+      ],
+      "poisson_pred": 2,
+      "poisson_pred_label": "away_win",
+      "poisson_proba": [
+        0.22150664644663637,
+        0.22776394841422642,
+        0.5507294051391373
+      ],
+      "elo_expected_home": 0.463209208806488,
+      "elo_pred": 1,
+      "elo_pred_label": "draw"
+    },
+    {
+      "match_date": "2016-05-17",
+      "home_team_id": 19,
+      "away_team_id": 11,
+      "y_true": 0,
+      "y_true_label": "home_win",
+      "logistic_regression_pred": 0,
+      "logistic_regression_pred_label": "home_win",
+      "logistic_regression_proba": [
+        0.6826029226600794,
+        0.1355704009669047,
+        0.1818266763730159
+      ],
+      "poisson_pred": 0,
+      "poisson_pred_label": "home_win",
+      "poisson_proba": [
+        0.6396759143063221,
+        0.2561038155363456,
+        0.10422027015733228
+      ],
+      "elo_expected_home": 0.6878124705207875,
+      "elo_pred": 0,
+      "elo_pred_label": "home_win"
+    }
+  ],
+  "config": {
+    "lr": {
+      "learning_rate": 0.01,
+      "n_iterations": 10000,
+      "l2_lambda": 0.01,
+      "random_state": 42
+    },
+    "elo": {
+      "K": 20.0,
+      "home_advantage": 50.0,
+      "initial_rating": 1500.0,
+      "home_win_threshold": 0.6,
+      "away_win_threshold": 0.4
+    },
+    "poisson": {
+      "max_goals": 8,
+      "min_history": 5,
+      "prior_strength": 1.0
+    },
+    "bootstrap": {
+      "n_boot": 500,
+      "seed": 42
+    }
+  },
+  "produced_at": "2026-10-19T16:23:40+00:00",
+  "notes": [
+    "Read-only: production DB SHA-256 before == after load; no writes performed.",
+    "Identical chronological test fixtures for all three models, aligned by (match_date, home_team_id, away_team_id).",
+    "EloModel.fit was fixed in Phase 21 to remove same-day leakage: same-date fixtures are now scored against pre-date ratings and the day's updates are batched. On this dataset same-date fixtures involve disjoint teams, so the fix is correctness-hygiene with zero metric impact (reported for honesty).",
+    "Metric caveat: Elo emits an expected home SCORE (2-class), not a calibrated 3-class probability. LR and Poisson emit proper 3-class probabilities, so their Brier/log-loss are directly comparable; Elo is compared on 3-class metrics only (accuracy/macro-F1/confusion/P-R).",
+    "Training-regime asymmetry: LR trains on the chronological train split only (e.g. 228 matches for the 380-fixture prod PL season), while Elo and Poisson are warmed on all 304 pre-test matches (train+val). This is an asymmetry of the training regime, not the test set. Expanding-window online LR is a future enhancement, explicitly out of scope here.",
+    "McNemar p-values use the exact two-sided binomial test on accuracy discordance. Bootstrap CIs use 2000 resamples (default) with the percentile method and a zero-difference p-value derived from the CI.",
+    "No model is ranked as 'superior'; metrics are descriptive."
+  ],
+  "production_db_sha256": "725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122",
+  "production_db_unchanged": true
+}

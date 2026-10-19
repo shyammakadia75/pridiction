@@ -182,9 +182,27 @@ class FeatureEngineer:
     def compute_all_features_from_db(
         self,
         db_path: Optional[str | Path] = None,
+        *,
+        competition_id: Optional[int] = None,
+        provider_competition_id: Optional[str] = None,
+        provider: Optional[str] = None,
+        season_name: Optional[str] = None,
     ) -> pd.DataFrame:
-        """Load matches from the database and compute features for all."""
-        df = load_matches_for_features(db_path)
+        """Load matches from the database and compute features for all.
+
+        Competition and season filters are forwarded to
+        :func:`load_matches_for_features`.  They are applied at load time so
+        feature generation only ever observes the selected matches (no
+        cross-competition contamination) and the strict-less-than date rule in
+        :func:`_filter_history` still prevents same-day / future leakage.
+        """
+        df = load_matches_for_features(
+            db_path,
+            competition_id=competition_id,
+            provider_competition_id=provider_competition_id,
+            provider=provider,
+            season_name=season_name,
+        )
         logger.info(
             "Computing features for %d matches (windows=%s).",
             len(df),
@@ -198,37 +216,164 @@ class FeatureEngineer:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_competition_id(
+    conn,
+    provider_competition_id: Optional[str],
+    provider: Optional[str],
+) -> Optional[int]:
+    """Resolve a provider-level competition identifier to the local ``competitions.id``.
+
+    Returns ``None`` when no ``provider_competition_id`` was supplied (i.e. no
+    competition filter was requested).  Raises :class:`ValueError` when the
+    identifier cannot be resolved, so a requested competition is never
+    silently substituted with another.
+    """
+    if provider_competition_id is None:
+        return None
+    pid = str(provider_competition_id)
+    if provider is not None:
+        rows = conn.execute(
+            "SELECT id FROM competitions "
+            "WHERE provider = ? AND provider_competition_id = ?",
+            (provider, pid),
+        ).fetchall()
+        if not rows:
+            raise ValueError(
+                f"No competition found for provider={provider!r}, "
+                f"provider_competition_id={pid!r}."
+            )
+        return int(rows[0][0])
+    rows = conn.execute(
+        "SELECT id, provider FROM competitions WHERE provider_competition_id = ?",
+        (pid,),
+    ).fetchall()
+    if not rows:
+        raise ValueError(
+            f"No competition found for provider_competition_id={pid!r}."
+        )
+    if len(rows) > 1:
+        providers = sorted({r[1] for r in rows})
+        raise ValueError(
+            f"provider_competition_id={pid!r} is ambiguous across providers "
+            f"{providers}; specify 'provider' to disambiguate."
+        )
+    return int(rows[0][0])
+
+
+def _ensure_competition_exists(conn, competition_id: int) -> None:
+    """Raise ``ValueError`` if ``competition_id`` does not reference a row."""
+    row = conn.execute(
+        "SELECT 1 FROM competitions WHERE id = ?", (competition_id,)
+    ).fetchone()
+    if row is None:
+        raise ValueError(
+            f"competition_id={competition_id} does not exist in the database."
+        )
+
+
 def load_matches_for_features(
     db_path: Optional[str | Path] = None,
+    *,
+    competition_id: Optional[int] = None,
+    provider_competition_id: Optional[str] = None,
+    provider: Optional[str] = None,
+    season_name: Optional[str] = None,
 ) -> pd.DataFrame:
-    """Load all matches with team IDs, dates, and scores.
+    """Load matches for feature engineering, optionally filtered by competition and/or season.
 
     The returned DataFrame includes columns::
+
         match_id, provider, provider_match_id, competition_id, season_name,
         match_date, home_team_id, away_team_id, home_goals, away_goals,
         match_status
 
-    The DataFrame is **not** pre-sorted; callers that need chronological
-    order must sort explicitly.
+    The DataFrame is **not** pre-sorted; callers that need chronological order
+    must sort explicitly.
+
+    Competition / season selection
+    ------------------------------
+    Two equivalent ways scope the competition:
+
+    * ``provider_competition_id`` (preferred, universal) -- the identifier used
+      by the upstream data provider (e.g. ``'2'`` for the StatsBomb Premier
+      League).  It is resolved to the local ``competitions.id`` via the
+      ``competitions`` table, so local database IDs are never hard-coded as
+      universal identifiers.  Supply ``provider`` to disambiguate when the same
+      ``provider_competition_id`` exists under more than one provider.
+    * ``competition_id`` -- the local integer primary key of the
+      ``competitions`` row (for callers that have already performed that
+      resolution).
+
+    ``competition_id`` and ``provider_competition_id`` are mutually exclusive;
+    supplying both raises :class:`ValueError`.
+
+    ``season_name`` (the schema's actual season representation, e.g.
+    ``'2015/16'``) scopes results to a single season *within* the selected
+    competition.  An unknown season is treated as a value filter and yields an
+    empty DataFrame rather than an error.
+
+    Safety
+    ------
+    * Backward compatible: omitting every filter returns the full match set.
+    * A requested competition that cannot be resolved raises
+      :class:`ValueError` -- it is never silently substituted.
+    * All filtering happens here, at load time, so downstream feature
+      generation only ever observes the selected matches (no cross-
+      competition contamination) and the strict-less-than date rule in
+      :func:`_filter_history` still prevents same-day / future leakage.
     """
-    query = """
-        SELECT
-            m.id              AS match_id,
-            m.provider        AS provider,
-            m.provider_match_id AS provider_match_id,
-            m.competition_id  AS competition_id,
-            m.season_name     AS season_name,
-            m.match_date      AS match_date,
-            m.home_team_id    AS home_team_id,
-            m.away_team_id    AS away_team_id,
-            m.home_goals      AS home_goals,
-            m.away_goals      AS away_goals,
-            m.match_status    AS match_status
-        FROM matches m
-    """
+    if competition_id is not None and provider_competition_id is not None:
+        raise ValueError(
+            "Provide either 'competition_id' or 'provider_competition_id', "
+            "not both."
+        )
+
     with database_connection(db_path) as conn:
-        df = pd.read_sql_query(query, conn)
-        logger.info("Loaded %d match row(s) for feature engineering.", len(df))
+        resolved_competition_id: Optional[int] = None
+        if provider_competition_id is not None:
+            resolved_competition_id = _resolve_competition_id(
+                conn, provider_competition_id, provider
+            )
+        elif competition_id is not None:
+            resolved_competition_id = competition_id
+            _ensure_competition_exists(conn, resolved_competition_id)
+
+        where: list[str] = []
+        params = []
+        if resolved_competition_id is not None:
+            where.append("m.competition_id = ?")
+            params.append(resolved_competition_id)
+        if season_name is not None:
+            where.append("m.season_name = ?")
+            params.append(season_name)
+
+        where_clause = ""
+        if where:
+            where_clause = " WHERE " + " AND ".join(where)
+
+        query = f"""
+            SELECT
+                m.id              AS match_id,
+                m.provider        AS provider,
+                m.provider_match_id AS provider_match_id,
+                m.competition_id  AS competition_id,
+                m.season_name     AS season_name,
+                m.match_date      AS match_date,
+                m.home_team_id    AS home_team_id,
+                m.away_team_id    AS away_team_id,
+                m.home_goals      AS home_goals,
+                m.away_goals      AS away_goals,
+                m.match_status    AS match_status
+            FROM matches m
+            {where_clause}
+        """
+
+        df = pd.read_sql_query(query, conn, params=params or None)
+        logger.info(
+            "Loaded %d match row(s) for feature engineering "
+            "(competition_id=%s, season_name=%s).",
+            len(df), resolved_competition_id, season_name,
+        )
     return df
 
 
@@ -418,77 +563,6 @@ def _add_venue_features(
         features[f"{side}_goals_scored_at_{label}_last_5"] = goals_scored
         features[f"{side}_goals_conceded_at_{label}_last_5"] = goals_conceded
         features[f"{side}_matches_at_{label}_last_5"] = count
-
-
-def _add_rest_features(
-    features: dict,
-    side: str,
-    team_history: pd.DataFrame,
-    target_date: datetime,
-) -> None:
-    """Add days-since-last-match and has-prior-match flags."""
-    if len(team_history) == 0:
-        features[f"{side}_days_since_last_match"] = None
-        features[f"{side}_has_prior_match"] = False
-        return
-
-    last_date_str = str(team_history["match_date"].iloc[-1])
-    last_date = _parse_date(last_date_str)
-    if last_date is None:
-        features[f"{side}_days_since_last_match"] = None
-        features[f"{side}_has_prior_match"] = True
-        return
-
-    delta = target_date - last_date
-    features[f"{side}_days_since_last_match"] = delta.days
-    features[f"{side}_has_prior_match"] = True
-
-
-def _add_h2h_features(
-    features: dict,
-    history: pd.DataFrame,
-    home_id: int,
-    away_id: int,
-) -> None:
-    """Add head-to-head features from prior meetings of the two teams.
-
-    Only meetings where **both** teams are present and completed (non-null
-    goals) and with match_date before the target fixture are counted.
-    """
-    h2h = history[
-        ((history["home_team_id"] == home_id) & (history["away_team_id"] == away_id))
-        | ((history["home_team_id"] == away_id) & (history["away_team_id"] == home_id))
-    ].copy()
-    h2h = h2h.sort_values("match_date").reset_index(drop=True)
-    count = len(h2h)
-    if count == 0:
-        features["h2h_home_wins"] = 0
-        features["h2h_home_draws"] = 0
-        features["h2h_home_losses"] = 0
-        features["h2h_total_matches"] = 0
-        return
-
-    wins = draws = losses = 0
-    for _, row in h2h.iterrows():
-        if row["home_team_id"] == home_id:
-            if row["home_goals"] > row["away_goals"]:
-                wins += 1
-            elif row["home_goals"] == row["away_goals"]:
-                draws += 1
-            else:
-                losses += 1
-        else:
-            if row["away_goals"] > row["home_goals"]:
-                wins += 1
-            elif row["away_goals"] == row["home_goals"]:
-                draws += 1
-            else:
-                losses += 1
-
-    features["h2h_home_wins"] = wins
-    features["h2h_home_draws"] = draws
-    features["h2h_home_losses"] = losses
-    features["h2h_total_matches"] = count
 
 
 def _add_rest_features(

@@ -1,0 +1,93 @@
+{
+  "dataset": {
+    "provider": "statsbomb",
+    "provider_competition_id": "2",
+    "season_name": "2015/2016",
+    "n_matches": 380,
+    "n_teams": 20,
+    "date_min": "2015-08-08",
+    "date_max": "2016-05-17"
+  },
+  "ratings": {
+    "Chelsea": 1513.2722888401945,
+    "Swansea City": 1495.6558784046626,
+    "AFC Bournemouth": 1455.1338253107206,
+    "Aston Villa": 1345.4113311412705,
+    "Leicester City": 1626.998726580982,
+    "Sunderland": 1471.6320878262986,
+    "Manchester United": 1554.8431243715927,
+    "Tottenham Hotspur": 1575.7077067914936,
+    "Everton": 1477.0480245593133,
+    "Watford": 1454.5276825843075,
+    "Norwich City": 1410.904222901077,
+    "Crystal Palace": 1443.5383640565985,
+    "Arsenal": 1575.0502535288208,
+    "West Ham United": 1550.0781165184178,
+    "Newcastle United": 1448.3032048423863,
+    "Southampton": 1561.0517745455552,
+    "Stoke City": 1489.8175244587273,
+    "Liverpool": 1538.6093740720607,
+    "West Bromwich Albion": 1464.4698569201191,
+    "Manchester City": 1547.946631745401
+  },
+  "eval_metrics": {
+    "n": 380,
+    "brier_expected_score": 0.16356990015740586,
+    "accuracy": 0.40789473684210525,
+    "macro_f1": 0.352681812071515,
+    "confusion_matrix": [
+      [
+        76,
+        80,
+        1
+      ],
+      [
+        30,
+        72,
+        5
+      ],
+      [
+        22,
+        87,
+        7
+      ]
+    ],
+    "confusion_labels": [
+      "home_win",
+      "draw",
+      "away_win"
+    ],
+    "class_distribution": {
+      "counts": {
+        "home_win": 157,
+        "draw": 107,
+        "away_win": 116
+      },
+      "percentages": {
+        "home_win": 41.31578947368421,
+        "draw": 28.157894736842106,
+        "away_win": 30.526315789473685
+      },
+      "total": 380
+    },
+    "home_win_threshold": 0.6,
+    "away_win_threshold": 0.4
+  },
+  "config": {
+    "K": 20.0,
+    "home_advantage": 50.0,
+    "initial_rating": 1500.0,
+    "home_win_threshold": 0.6,
+    "away_win_threshold": 0.4
+  },
+  "produced_at": "2026-10-19T08:28:37+00:00",
+  "notes": [
+    "Read-only evaluation: SELECT-only loaders; SHA-256 re-checked after load; any modification aborts.",
+    "No cross-competition leakage: load-time provider_competition_id filter isolates a single competition.",
+    "Online prediction: each match is scored from ratings learned from strictly-earlier results (chronological order, no shuffle, no future info).",
+    "No model selection: K / home_advantage / initial_rating are fixed; prediction thresholds are fixed, not tuned on any held-out partition.",
+    "Elo expected score is a continuous 0-1 score, not a calibrated 3-class probability; metrics are descriptive, not ranked."
+  ],
+  "production_db_sha256": "725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122",
+  "production_db_unchanged": true
+}

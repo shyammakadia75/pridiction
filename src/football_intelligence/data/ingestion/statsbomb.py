@@ -401,9 +401,12 @@ def _upsert_match(
     away_team_id: int,
     now: str,
 ) -> str:
-    """Insert or update a match row.  Returns ``"inserted"`` or ``"updated"``."""
+    """Insert or update a match row.  Returns ``"inserted"``, ``"updated"``, ``"skipped"`` or ``"ambiguous"``."""
     pid = _or_none(row.get("provider_match_id"))
     assert pid is not None  # validate() guarantees this
+    match_date = _or_none(row.get("match_date"))
+    home_name = _or_none(row.get("home_team_name"))
+    away_name = _or_none(row.get("away_team_name"))
     exists = conn.execute(
         "SELECT id FROM matches WHERE provider=? AND provider_match_id=?",
         (PROVIDER, pid),
@@ -429,6 +432,20 @@ def _upsert_match(
             ),
         )
         return "updated"
+
+    # (2) Cross-source guard: mirror football_data_results._upsert_match.
+    #     Lazy import avoids the odds<->statsbomb cycle (odds imports
+    #     _utcnow/_safe_cache_path from this module at load time).
+    from ..ingestion.odds import _find_matches_for_reconciliation
+    found = _find_matches_for_reconciliation(conn, match_date, home_name, away_name)
+    if found:
+        if len(found) == 1:
+            logger.info("Skipping cross-source fixture %s (already present, match_id=%s)", pid, found[0])
+            return "skipped"
+        logger.warning("Ambiguous fixture %s (multiple existing matches): %s", pid, found)
+        return "ambiguous"
+
+    # (3) Genuinely new fixture -> insert.
     conn.execute(
         "INSERT INTO matches "
         "(provider, provider_match_id, competition_id, season_name, "
@@ -681,6 +698,8 @@ class StatsBombIngestor(BaseIngestor):
         now = _utcnow()
         inserted = 0
         updated = 0
+        skipped = 0
+        ambiguous = 0
 
         # Most common non-null data_version across records.
         data_version: Optional[str] = None
@@ -731,8 +750,12 @@ class StatsBombIngestor(BaseIngestor):
                 )
                 if action == "inserted":
                     inserted += 1
-                else:
+                elif action == "updated":
                     updated += 1
+                elif action == "skipped":
+                    skipped += 1
+                elif action == "ambiguous":
+                    ambiguous += 1
             _record_data_source(
                 conn,
                 self._source_url,
@@ -743,10 +766,13 @@ class StatsBombIngestor(BaseIngestor):
             )
 
         logger.info(
-            "Loaded %d match record(s): %d inserted, %d updated",
+            "Loaded %d match record(s): %d inserted, %d updated, %d skipped, "
+            "%d ambiguous",
             len(data),
             inserted,
             updated,
+            skipped,
+            ambiguous,
         )
         return IngestionResult(
             provider=PROVIDER,
@@ -754,6 +780,8 @@ class StatsBombIngestor(BaseIngestor):
             records_read=len(data),
             records_inserted=inserted,
             records_updated=updated,
+            records_skipped=skipped,
+            records_ambiguous=ambiguous,
             status="success",
         )
 

@@ -1,0 +1,46 @@
+Phase-20 Poisson Goal Model Report
+===================================
+Produced: 2026-10-19T10:43:26+00:00
+provider=statsbomb competition_id=2 season=None
+n_matches=380 n_teams=20 date_min=2015-08-08 date_max=2016-05-17
+production DB sha256: 725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122
+production DB unchanged: True
+
+Config
+------
+  max_goals: 8
+  min_history: 5
+  prior_strength: 1.0
+  rate_floor: 0.0001
+  over_under_line: 2.5
+  btts_threshold: 1
+
+Outcome metrics (online, chronological)
+--------------------------------------
+  n=380 n_scored=380
+  accuracy: 0.4395
+  macro_f1: 0.3581
+  brier_score: 0.6660
+  log_loss: 1.1758
+  per-class P/R/F1:
+    home_win  P=0.5000 R=0.6369 F1=0.5602 N=157
+    draw      P=0.2667 R=0.0374 F1=0.0656 N=107
+    away_win  P=0.3818 R=0.5431 F1=0.4484 N=116
+  class distribution counts: {'home_win': 157, 'draw': 107, 'away_win': 116}
+
+Goal metrics
+------------
+  expected_total_goals_mae: 1.499260
+  mean_actual_total_goals: 2.700000
+  mean_predicted_total_goals: 2.594724
+  over_2_5_brier: 0.280376
+  btts_brier: 0.271512
+
+Notes
+-----
+- Read-only evaluation: SELECT-only loaders; SHA-256 re-checked after load; any modification aborts.
+- No cross-competition leakage: load-time provider_competition_id filter isolates a single competition.
+- No same-day / future leakage: each fixture's history is the strict prefix of earlier-dated matches.
+- No model selection: hyperparameters are fixed; metrics are descriptive, not ranked as superiority claims.
+- Goal model is independent Poisson (no correlated-score correction).
+- Over/under and BTTS metrics use Brier score only.

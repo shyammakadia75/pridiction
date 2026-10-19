@@ -58,6 +58,48 @@ from .baseline import (
     prepare_training_data,
 )
 
+
+from .evaluation import (
+    EvaluationReport,
+    LEAKAGE_COLS,
+    build_feature_dataset,
+    classification_report,
+    compute_brier_score,
+    compute_calibration,
+    compute_macro_f1,
+    compute_precision_recall,
+    feature_columns,
+    run_prediction_evaluation,
+    save_report,
+)
+
+from .elo import (
+    EloModel,
+    EloReport,
+    run_elo_evaluation,
+    save_elo_report,
+)
+
+from .poisson import (
+    PoissonModel,
+    PoissonFixturePrediction,
+    PoissonReport,
+    poisson_pmf,
+    score_probability_grid,
+    home_draw_away_probabilities,
+    over_under_probability,
+    both_teams_to_score_probability,
+    run_poisson_chronological,
+    run_poisson_evaluation,
+    save_poisson_report,
+    DEFAULT_MAX_GOALS,
+    DEFAULT_MIN_HISTORY,
+    DEFAULT_PRIOR_STRENGTH,
+    DEFAULT_RATE_FLOOR,
+)
+
+
+
 __all__ = [
     "FrequencyBaseline",
     "LogisticRegressionClassifier",
@@ -72,4 +114,34 @@ __all__ = [
     "class_distribution",
     "evaluate_predictions",
     "prepare_training_data",
+    "EvaluationReport",
+    "LEAKAGE_COLS",
+    "build_feature_dataset",
+    "classification_report",
+    "compute_brier_score",
+    "compute_calibration",
+    "compute_macro_f1",
+    "compute_precision_recall",
+    "feature_columns",
+    "run_prediction_evaluation",
+    "save_report",
+    "EloModel",
+    "EloReport",
+    "run_elo_evaluation",
+    "save_elo_report",
+    "PoissonModel",
+    "PoissonFixturePrediction",
+    "PoissonReport",
+    "poisson_pmf",
+    "score_probability_grid",
+    "home_draw_away_probabilities",
+    "over_under_probability",
+    "both_teams_to_score_probability",
+    "run_poisson_chronological",
+    "run_poisson_evaluation",
+    "save_poisson_report",
+    "DEFAULT_MAX_GOALS",
+    "DEFAULT_MIN_HISTORY",
+    "DEFAULT_PRIOR_STRENGTH",
+    "DEFAULT_RATE_FLOOR",
 ]

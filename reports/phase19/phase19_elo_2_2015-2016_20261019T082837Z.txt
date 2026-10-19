@@ -1,0 +1,54 @@
+Phase-19 Elo Ratings Report
+===========================
+Produced: 2026-10-19T08:28:37+00:00
+provider=statsbomb competition_id=2 season=2015/2016
+n_matches=380 n_teams=20 date_min=2015-08-08 date_max=2016-05-17
+production DB sha256: 725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122
+production DB unchanged: True
+
+Config
+------
+  K: 20.0
+  home_advantage: 50.0
+  initial_rating: 1500.0
+  home_win_threshold: 0.6
+  away_win_threshold: 0.4
+
+Final ratings (top 15)
+----------------------
+   1. Leicester City           1627.0
+   2. Tottenham Hotspur        1575.7
+   3. Arsenal                  1575.1
+   4. Southampton              1561.1
+   5. Manchester United        1554.8
+   6. West Ham United          1550.1
+   7. Manchester City          1547.9
+   8. Liverpool                1538.6
+   9. Chelsea                  1513.3
+  10. Swansea City             1495.7
+  11. Stoke City               1489.8
+  12. Everton                  1477.0
+  13. Sunderland               1471.6
+  14. West Bromwich Albion     1464.5
+  15. AFC Bournemouth          1455.1
+  ... and 5 more
+
+Online evaluation (each match vs. pre-match ratings)
+----------------------------------------------------
+  n=380
+  accuracy: 0.4079
+  macro_f1: 0.3527
+  brier_expected_score: 0.1636
+  confusion (rows=true, cols=pred, home/draw/away):
+         76      80       1
+         30      72       5
+         22      87       7
+  class distribution counts: {'home_win': 157, 'draw': 107, 'away_win': 116}
+
+Notes
+-----
+- Read-only evaluation: SELECT-only loaders; SHA-256 re-checked after load; any modification aborts.
+- No cross-competition leakage: load-time provider_competition_id filter isolates a single competition.
+- Online prediction: each match is scored from ratings learned from strictly-earlier results (chronological order, no shuffle, no future info).
+- No model selection: K / home_advantage / initial_rating are fixed; prediction thresholds are fixed, not tuned on any held-out partition.
+- Elo expected score is a continuous 0-1 score, not a calibrated 3-class probability; metrics are descriptive, not ranked.

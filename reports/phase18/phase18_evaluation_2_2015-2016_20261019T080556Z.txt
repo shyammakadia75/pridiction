@@ -1,0 +1,79 @@
+Phase-18 Prediction Evaluation Report
+======================================
+Produced: 2026-10-19T08:05:56+00:00
+
+Dataset
+-------
+provider=statsbomb competition_id=2 season=2015/2016
+n_matches=380 n_features=48
+split counts: {'total': 380, 'train': 228, 'val': 76, 'test': 76}
+production DB sha256: 725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122
+production DB unchanged: True
+
+Model: frequency_baseline (type=frequency)
+  train=228 val=76 test=76
+  [train] n=228 acc=0.39473684210526316 brier=0.6606648199445985 logloss=1.0897840330218798 macroF1=0.18867924528301885
+    per-class P/R/F1:
+      home_win  P=0.3947 R=1.0000 F1=0.5660 N=90
+      draw      P=0.0000 R=0.0000 F1=0.0000 N=66
+      away_win  P=0.0000 R=0.0000 F1=0.0000 N=72
+    confusion (rows=true, cols=pred, home/draw/away):
+           90       0       0
+           66       0       0
+           72       0       0
+  [val] n=76 acc=0.39473684210526316 brier=0.6565096952908587 logloss=1.0829147137858564 macroF1=0.18867924528301885
+    per-class P/R/F1:
+      home_win  P=0.3947 R=1.0000 F1=0.5660 N=30
+      draw      P=0.0000 R=0.0000 F1=0.0000 N=16
+      away_win  P=0.0000 R=0.0000 F1=0.0000 N=30
+    confusion (rows=true, cols=pred, home/draw/away):
+           30       0       0
+           16       0       0
+           30       0       0
+  [test] n=76 acc=0.4868421052631579 brier=0.6481994459833794 logloss=1.072665997124109 macroF1=0.2182890855457227
+    per-class P/R/F1:
+      home_win  P=0.4868 R=1.0000 F1=0.6549 N=37
+      draw      P=0.0000 R=0.0000 F1=0.0000 N=25
+      away_win  P=0.0000 R=0.0000 F1=0.0000 N=14
+    confusion (rows=true, cols=pred, home/draw/away):
+           37       0       0
+           25       0       0
+           14       0       0
+
+Model: logistic_regression (type=logistic_regression)
+  train=228 val=76 test=76
+  [train] n=228 acc=0.5570175438596491 brier=0.5546583838020227 logloss=0.9301281850471221 macroF1=0.5380687830687831
+    per-class P/R/F1:
+      home_win  P=0.5818 R=0.7111 F1=0.6400 N=90
+      draw      P=0.5435 R=0.3788 F1=0.4464 N=66
+      away_win  P=0.5278 R=0.5278 F1=0.5278 N=72
+    confusion (rows=true, cols=pred, home/draw/away):
+           64       9      17
+           24      25      17
+           22      12      38
+  [val] n=76 acc=0.4342105263157895 brier=0.7066349976273125 logloss=1.1906851905305302 macroF1=0.395697621572489
+    per-class P/R/F1:
+      home_win  P=0.5385 R=0.7000 F1=0.6087 N=30
+      draw      P=0.2400 R=0.3750 F1=0.2927 N=16
+      away_win  P=0.5000 R=0.2000 F1=0.2857 N=30
+    confusion (rows=true, cols=pred, home/draw/away):
+           21       6       3
+            7       6       3
+           11      13       6
+  [test] n=76 acc=0.47368421052631576 brier=0.6798835093945662 logloss=1.2015597115632508 macroF1=0.3529118964659035
+    per-class P/R/F1:
+      home_win  P=0.5556 R=0.6757 F1=0.6098 N=37
+      draw      P=0.4583 R=0.4400 F1=0.4490 N=25
+      away_win  P=0.0000 R=0.0000 F1=0.0000 N=14
+    confusion (rows=true, cols=pred, home/draw/away):
+           25       7       5
+           12      11       2
+            8       6       0
+
+Notes
+-----
+- Read-only evaluation: SELECT-only loaders; SHA-256 re-checked after load; any modification aborts.
+- No cross-competition leakage: load-time provider_competition_id filter isolates a single competition.
+- No same-day / future leakage: feature history for match m uses only matches strictly older than m.
+- Preprocessing fit on TRAIN ONLY: class priors and the LR imputer/scaler are fit on train and re-applied to val/test via the model object.
+- No model selection: LR hyperparameters are fixed; metrics are descriptive, not ranked.

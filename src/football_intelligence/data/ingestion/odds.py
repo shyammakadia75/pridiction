@@ -515,18 +515,28 @@ def record_ingestion_run(db_path: Optional[Path], result: IngestionResult) -> No
     """Persist an :class:`IngestionResult` as a row in ``ingestion_runs``.
 
     Always creates a new row (audit trail).  Safe to call for both successful
-    and failed runs.
+    and failed runs.  Only the columns declared by :data:`INGESTION_RUNS_SQL`
+    are written; :class:`IngestionResult` carries additional in-memory summary
+    fields (``records_skipped``/``records_matched``/``records_unmatched``/
+    ``records_ambiguous``/``records_invalid``) that are intentionally not
+    persisted -- no schema version or migration in this codebase declares them,
+    so persisting them here would invent schema.  Mirrors
+    :func:`statsbomb.record_ingestion_run`.
     """
     path = resolve_db_path(db_path)
     now = _utcnow()
     with database_connection(path) as conn:
         conn.execute(
+            # Aligned to ``INGESTION_RUNS_SQL`` (schema.py). The previous
+            # 15-column form referenced columns no schema version declares
+            # (records_skipped/matched/unmatched/ambiguous/invalid) and raised
+            # "table ingestion_runs has no column named ...". Those fields
+            # remain on IngestionResult for CLI summaries but are intentionally
+            # not persisted. Mirrors statsbomb.record_ingestion_run.
             "INSERT INTO ingestion_runs "
             "(provider, dataset_name, started_at, completed_at, status, "
             "records_read, records_inserted, records_updated, error_message, "
-            "records_skipped, records_matched, records_unmatched, "
-            "records_ambiguous, records_invalid, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 result.provider,
                 result.dataset_name,
@@ -537,11 +547,6 @@ def record_ingestion_run(db_path: Optional[Path], result: IngestionResult) -> No
                 result.records_inserted,
                 result.records_updated,
                 result.error_message,
-                result.records_skipped,
-                result.records_matched,
-                result.records_unmatched,
-                result.records_ambiguous,
-                result.records_invalid,
                 now,
             ),
         )

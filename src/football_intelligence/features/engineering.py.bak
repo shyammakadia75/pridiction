@@ -1,0 +1,707 @@
+"""Leakage-safe pre-match feature engineering.
+
+All features are computed using **only** match results that were completed
+**before** the target fixture's scheduled date.  This strictly prevents:
+
+* **Target leakage** -- the target match's own score is never used.
+* **Future leakage** -- no match on or after the target date contributes.
+* **Same-day ambiguity** -- when two fixtures share a date but kickoff
+  order is unknown, neither is included in the other's history.
+
+A match is considered "complete" (eligible for history) when both
+``home_goals`` and ``away_goals`` are non-NULL, indicating the result is
+known.  This definition is intentionally independent of ``match_status``,
+which varies by provider.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, Sequence
+
+import pandas as pd
+
+from ..database import database_connection
+from ..logging_config import get_logger
+
+logger = get_logger("features.engineering")
+
+__all__ = [
+    "FeatureEngineer",
+    "FeatureSpec",
+    "DEFAULT_LOOKBACK_WINDOWS",
+    "load_matches_for_features",
+]
+
+
+#: Default lookback windows (number of completed matches).
+DEFAULT_LOOKBACK_WINDOWS: tuple[int, ...] = (5, 10)
+
+
+# ---------------------------------------------------------------------------
+# Spec dataclass
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FeatureSpec:
+    """Immutable specification for a single feature-computation run.
+
+    Attributes:
+        lookback_windows: Match-count windows for rolling form features.
+        include_home_away_split: If True, also compute venue-specific
+            performance features.
+        include_head_to_head: If True, compute historical H2H features.
+    """
+
+    lookback_windows: tuple[int, ...] = DEFAULT_LOOKBACK_WINDOWS
+    include_home_away_split: bool = True
+    include_head_to_head: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Core engine
+# ---------------------------------------------------------------------------
+
+
+class FeatureEngineer:
+    """Compute leakage-safe pre-match features from match data.
+
+    Example
+    -------
+    >>> engineer = FeatureEngineer()
+    >>> df = engineer.compute_all_features_from_db(db_path)
+    """
+
+    def __init__(
+        self,
+        lookback_windows: Sequence[int] | None = None,
+        include_home_away_split: bool = True,
+        include_head_to_head: bool = True,
+    ) -> None:
+        windows = (
+            list(lookback_windows)
+            if lookback_windows
+            else list(DEFAULT_LOOKBACK_WINDOWS)
+        )
+        self.spec = FeatureSpec(
+            lookback_windows=tuple(sorted(windows)),
+                        include_home_away_split=include_home_away_split,
+            include_head_to_head=include_head_to_head,
+        )
+
+    # -- public API ---------------------------------------------------------
+
+    def compute_features(
+        self,
+        df: pd.DataFrame,
+        target_match_id: int,
+    ) -> dict:
+        """Compute features for a single target match.
+
+        Args:
+            df: The full match DataFrame (see :func:`load_matches_for_features`).
+            target_match_id: The ``match_id`` of the fixture to predict.
+
+        Returns:
+            A dict of feature_name -> value.  The ``target_match_id``
+            is always included as ``target_match_id``.
+        """
+        target_row = df.loc[df["match_id"] == target_match_id]
+        if target_row.empty:
+            raise KeyError(f"match_id {target_match_id} not found in data")
+
+        target_date_str = str(target_row.iloc[0]["match_date"])
+        target_date = _parse_date(target_date_str)
+        if target_date is None:
+            return {
+                "target_match_id": target_match_id,
+                "features_valid": False,
+            }
+
+        home_id = int(target_row.iloc[0]["home_team_id"])
+        away_id = int(target_row.iloc[0]["away_team_id"])
+
+        # Core leakage prevention: only matches before the target date.
+        history = _filter_history(df, target_match_id, target_date)
+
+        features: dict = {
+            "target_match_id": target_match_id,
+            "target_match_date": target_date_str,
+            "home_team_id": home_id,
+            "away_team_id": away_id,
+            "features_valid": True,
+        }
+
+        for side, team_id in (("home", home_id), ("away", away_id)):
+            team_history = history[
+                (history["home_team_id"] == team_id)
+                | (history["away_team_id"] == team_id)
+            ].copy()
+            team_history = team_history.sort_values("match_date").reset_index(
+                drop=True
+            )
+
+            # Section A: team form (all matches, both venues)
+            _add_form_features(
+                features, side, team_history, self.spec.lookback_windows, team_id
+            )
+
+            # Section B: venue-specific performance
+            if self.spec.include_home_away_split:
+                _add_venue_features(features, side, team_history, team_id)
+
+            # Section C: rest and schedule
+            _add_rest_features(features, side, team_history, target_date)
+
+        # Section D: head-to-head (optional)
+        if self.spec.include_head_to_head:
+            _add_h2h_features(features, history, home_id, away_id)
+
+        return features
+
+    def compute_all_features(
+        self,
+        df: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Compute features for every match that has a valid date.
+
+        Returns a DataFrame where each row corresponds to one match,
+        with feature columns.  Matches without a parseable match_date
+        are included with ``features_valid=False`` and NaN feature columns.
+        """
+        match_ids = df["match_id"].tolist()
+        rows: list[dict] = []
+        for mid in match_ids:
+            feats = self.compute_features(df, mid)
+            rows.append(feats)
+        result = pd.DataFrame(rows)
+        return result
+
+    def compute_all_features_from_db(
+        self,
+        db_path: Optional[str | Path] = None,
+        *,
+        competition_id: Optional[int] = None,
+        provider_competition_id: Optional[str] = None,
+        provider: Optional[str] = None,
+        season_name: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """Load matches from the database and compute features for all.
+
+        Competition and season filters are forwarded to
+        :func:`load_matches_for_features`.  They are applied at load time so
+        feature generation only ever observes the selected matches (no
+        cross-competition contamination) and the strict-less-than date rule in
+        :func:`_filter_history` still prevents same-day / future leakage.
+        """
+        df = load_matches_for_features(
+            db_path,
+            competition_id=competition_id,
+            provider_competition_id=provider_competition_id,
+            provider=provider,
+            season_name=season_name,
+        )
+        logger.info(
+            "Computing features for %d matches (windows=%s).",
+            len(df),
+            self.spec.lookback_windows,
+        )
+        return self.compute_all_features(df)
+
+
+# ---------------------------------------------------------------------------
+# Database loading
+# ---------------------------------------------------------------------------
+
+
+def _resolve_competition_id(
+    conn,
+    provider_competition_id: Optional[str],
+    provider: Optional[str],
+) -> Optional[int]:
+    """Resolve a provider-level competition identifier to the local ``competitions.id``.
+
+    Returns ``None`` when no ``provider_competition_id`` was supplied (i.e. no
+    competition filter was requested).  Raises :class:`ValueError` when the
+    identifier cannot be resolved, so a requested competition is never
+    silently substituted with another.
+    """
+    if provider_competition_id is None:
+        return None
+    pid = str(provider_competition_id)
+    if provider is not None:
+        rows = conn.execute(
+            "SELECT id FROM competitions "
+            "WHERE provider = ? AND provider_competition_id = ?",
+            (provider, pid),
+        ).fetchall()
+        if not rows:
+            raise ValueError(
+                f"No competition found for provider={provider!r}, "
+                f"provider_competition_id={pid!r}."
+            )
+        return int(rows[0][0])
+    rows = conn.execute(
+        "SELECT id, provider FROM competitions WHERE provider_competition_id = ?",
+        (pid,),
+    ).fetchall()
+    if not rows:
+        raise ValueError(
+            f"No competition found for provider_competition_id={pid!r}."
+        )
+    if len(rows) > 1:
+        providers = sorted({r[1] for r in rows})
+        raise ValueError(
+            f"provider_competition_id={pid!r} is ambiguous across providers "
+            f"{providers}; specify 'provider' to disambiguate."
+        )
+    return int(rows[0][0])
+
+
+def _ensure_competition_exists(conn, competition_id: int) -> None:
+    """Raise ``ValueError`` if ``competition_id`` does not reference a row."""
+    row = conn.execute(
+        "SELECT 1 FROM competitions WHERE id = ?", (competition_id,)
+    ).fetchone()
+    if row is None:
+        raise ValueError(
+            f"competition_id={competition_id} does not exist in the database."
+        )
+
+
+def load_matches_for_features(
+    db_path: Optional[str | Path] = None,
+    *,
+    competition_id: Optional[int] = None,
+    provider_competition_id: Optional[str] = None,
+    provider: Optional[str] = None,
+    season_name: Optional[str] = None,
+) -> pd.DataFrame:
+    """Load matches for feature engineering, optionally filtered by competition and/or season.
+
+    The returned DataFrame includes columns::
+
+        match_id, provider, provider_match_id, competition_id, season_name,
+        match_date, home_team_id, away_team_id, home_goals, away_goals,
+        match_status
+
+    The DataFrame is **not** pre-sorted; callers that need chronological order
+    must sort explicitly.
+
+    Competition / season selection
+    ------------------------------
+    Two equivalent ways scope the competition:
+
+    * ``provider_competition_id`` (preferred, universal) -- the identifier used
+      by the upstream data provider (e.g. ``'2'`` for the StatsBomb Premier
+      League).  It is resolved to the local ``competitions.id`` via the
+      ``competitions`` table, so local database IDs are never hard-coded as
+      universal identifiers.  Supply ``provider`` to disambiguate when the same
+      ``provider_competition_id`` exists under more than one provider.
+    * ``competition_id`` -- the local integer primary key of the
+      ``competitions`` row (for callers that have already performed that
+      resolution).
+
+    ``competition_id`` and ``provider_competition_id`` are mutually exclusive;
+    supplying both raises :class:`ValueError`.
+
+    ``season_name`` (the schema's actual season representation, e.g.
+    ``'2015/16'``) scopes results to a single season *within* the selected
+    competition.  An unknown season is treated as a value filter and yields an
+    empty DataFrame rather than an error.
+
+    Safety
+    ------
+    * Backward compatible: omitting every filter returns the full match set.
+    * A requested competition that cannot be resolved raises
+      :class:`ValueError` -- it is never silently substituted.
+    * All filtering happens here, at load time, so downstream feature
+      generation only ever observes the selected matches (no cross-
+      competition contamination) and the strict-less-than date rule in
+      :func:`_filter_history` still prevents same-day / future leakage.
+    """
+    if competition_id is not None and provider_competition_id is not None:
+        raise ValueError(
+            "Provide either 'competition_id' or 'provider_competition_id', "
+            "not both."
+        )
+
+    with database_connection(db_path) as conn:
+        resolved_competition_id: Optional[int] = None
+        if provider_competition_id is not None:
+            resolved_competition_id = _resolve_competition_id(
+                conn, provider_competition_id, provider
+            )
+        elif competition_id is not None:
+            resolved_competition_id = competition_id
+            _ensure_competition_exists(conn, resolved_competition_id)
+
+        where: list[str] = []
+        params = []
+        if resolved_competition_id is not None:
+            where.append("m.competition_id = ?")
+            params.append(resolved_competition_id)
+        if season_name is not None:
+            where.append("m.season_name = ?")
+            params.append(season_name)
+
+        where_clause = ""
+        if where:
+            where_clause = " WHERE " + " AND ".join(where)
+
+        query = f"""
+            SELECT
+                m.id              AS match_id,
+                m.provider        AS provider,
+                m.provider_match_id AS provider_match_id,
+                m.competition_id  AS competition_id,
+                m.season_name     AS season_name,
+                m.match_date      AS match_date,
+                m.home_team_id    AS home_team_id,
+                m.away_team_id    AS away_team_id,
+                m.home_goals      AS home_goals,
+                m.away_goals      AS away_goals,
+                m.match_status    AS match_status
+            FROM matches m
+            {where_clause}
+        """
+
+        df = pd.read_sql_query(query, conn, params=params or None)
+        logger.info(
+            "Loaded %d match row(s) for feature engineering "
+            "(competition_id=%s, season_name=%s).",
+            len(df), resolved_competition_id, season_name,
+        )
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _parse_date(date_str: str) -> Optional[datetime]:
+    """Parse a date string into a :class:`datetime`, or ``None`` if unparseable.
+
+    Handles ISO formats (``YYYY-MM-DD``, ``YYYY-MM-DDTHH:MM:SS+00:00``)
+    and returns only the date component for comparison.
+    """
+    if not date_str or date_str == "nan":
+        return None
+    date_str = date_str.strip()
+    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%d %H:%M:%S%z"):
+        try:
+            return datetime.strptime(date_str[:25] if "%z" in fmt else date_str, fmt)
+        except ValueError:
+            continue
+        # Pandas fallback for other ISO variants.
+    parsed = pd.to_datetime(date_str, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    return parsed.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _filter_history(
+    df: pd.DataFrame,
+    target_match_id: int,
+    target_date: datetime,
+) -> pd.DataFrame:
+    """Return completed matches with match_date strictly before *target_date*.
+
+    Core leakage-prevention step:
+    - The target match itself is excluded (same date, not < target_date).
+    - Same-day matches are excluded (date == target_date is not < target_date).
+    - Only completed matches (non-null goals) are included.
+    - Results are sorted by match_date, NOT by DataFrame row order.
+    """
+    mask = df["match_date"].notna()
+    history = df[mask].copy()
+    history["_parsed_date"] = history["match_date"].apply(
+        lambda x: _parse_date(str(x))
+    )
+    history = history[history["_parsed_date"].notna()].copy()
+    history = history[history["_parsed_date"] < target_date].copy()
+    history = history[history["match_id"] != target_match_id].copy()
+
+    # Only completed matches (both scores present).
+    history = history[
+        history["home_goals"].notna() & history["away_goals"].notna()
+    ].copy()
+    history = history.sort_values("match_date").reset_index(drop=True)
+    return history
+
+
+def _team_points(row: pd.Series, team_id: int) -> Optional[int]:
+    """Return 3 (win), 1 (draw), or 0 (loss) for *team_id* in *row*."""
+    home_goals = row["home_goals"]
+    away_goals = row["away_goals"]
+    if pd.isna(home_goals) or pd.isna(away_goals):
+        return None
+    if row["home_team_id"] == team_id:
+        if home_goals > away_goals:
+            return 3
+        elif home_goals == away_goals:
+            return 1
+        return 0
+    elif row["away_team_id"] == team_id:
+        if away_goals > home_goals:
+            return 3
+        elif away_goals == home_goals:
+            return 1
+        return 0
+    return None
+
+
+
+def _add_form_features(
+    features: dict,
+    side: str,
+    team_history: pd.DataFrame,
+    windows: Sequence[int],
+    team_id: int,
+) -> None:
+    """Add rolling form features for a team (all matches, both venues).
+
+    For each window *N* in *windows*, the last *N* completed matches in
+    *team_history* are used to compute: points, wins, draws, losses,
+    goals scored, goals conceded, goal difference, and matches played.
+
+    Cold start: when the team has fewer than *N* (or zero) prior matches,
+    all statistics are ``None`` and ``matches_played`` records the actual
+    count available.
+    """
+    for n in windows:
+        recent = team_history.tail(n)
+        count = len(recent)
+        if count == 0:
+            for suffix in ("points", "wins", "draws", "losses",
+                           "goals_scored", "goals_conceded", "goal_diff"):
+                features[f"{side}_{suffix}_last_{n}"] = None
+            features[f"{side}_matches_played_last_{n}"] = 0
+        else:
+            wins = draws = losses = 0
+            goals_scored = 0
+            goals_conceded = 0
+            points_list: list[int] = []
+            for _, row in recent.iterrows():
+                pts = _team_points(row, team_id)
+                if row["home_team_id"] == team_id:
+                    gf = int(row["home_goals"])
+                    ga = int(row["away_goals"])
+                else:
+                    gf = int(row["away_goals"])
+                    ga = int(row["home_goals"])
+                goals_scored += gf
+                goals_conceded += ga
+                if pts is None:
+                    pts = 0
+                points_list.append(pts)
+                if pts == 3:
+                    wins += 1
+                elif pts == 1:
+                    draws += 1
+                else:
+                    losses += 1
+
+            features[f"{side}_points_last_{n}"] = sum(points_list)
+            features[f"{side}_wins_last_{n}"] = wins
+            features[f"{side}_draws_last_{n}"] = draws
+            features[f"{side}_losses_last_{n}"] = losses
+            features[f"{side}_goals_scored_last_{n}"] = goals_scored
+            features[f"{side}_goals_conceded_last_{n}"] = goals_conceded
+            features[f"{side}_goal_diff_last_{n}"] = goals_scored - goals_conceded
+            features[f"{side}_matches_played_last_{n}"] = count
+
+
+def _add_venue_features(
+    features: dict,
+    side: str,
+    team_history: pd.DataFrame,
+    team_id: int,
+) -> None:
+    """Add venue-specific performance features (last 5 matches).
+
+    For the **home** side: only the team's home matches are used.
+    For the **away** side: only the team's away matches are used.
+    """
+    if side == "home":
+        venue_history = team_history[team_history["home_team_id"] == team_id]
+        label = "home"
+    else:
+        venue_history = team_history[team_history["away_team_id"] == team_id]
+        label = "away"
+
+    venue_history = venue_history.tail(5)
+    count = len(venue_history)
+    if count == 0:
+        features[f"{side}_points_at_{label}_last_5"] = None
+        features[f"{side}_goals_scored_at_{label}_last_5"] = None
+        features[f"{side}_goals_conceded_at_{label}_last_5"] = None
+        features[f"{side}_matches_at_{label}_last_5"] = 0
+    else:
+        points_list: list[int] = []
+        goals_scored = 0
+        goals_conceded = 0
+        for _, row in venue_history.iterrows():
+            pts = _team_points(row, team_id)
+            if row["home_team_id"] == team_id:
+                gf = int(row["home_goals"])
+                ga = int(row["away_goals"])
+            else:
+                gf = int(row["away_goals"])
+                ga = int(row["home_goals"])
+            goals_scored += gf
+            goals_conceded += ga
+            if pts is None:
+                pts = 0
+            points_list.append(pts)
+
+        features[f"{side}_points_at_{label}_last_5"] = sum(points_list)
+        features[f"{side}_goals_scored_at_{label}_last_5"] = goals_scored
+        features[f"{side}_goals_conceded_at_{label}_last_5"] = goals_conceded
+        features[f"{side}_matches_at_{label}_last_5"] = count
+
+
+def _add_rest_features(
+    features: dict,
+    side: str,
+    team_history: pd.DataFrame,
+    target_date: datetime,
+) -> None:
+    """Add days-since-last-match and has-prior-match flags."""
+    if len(team_history) == 0:
+        features[f"{side}_days_since_last_match"] = None
+        features[f"{side}_has_prior_match"] = False
+        return
+
+    last_date_str = str(team_history["match_date"].iloc[-1])
+    last_date = _parse_date(last_date_str)
+    if last_date is None:
+        features[f"{side}_days_since_last_match"] = None
+        features[f"{side}_has_prior_match"] = True
+        return
+
+    delta = target_date - last_date
+    features[f"{side}_days_since_last_match"] = delta.days
+    features[f"{side}_has_prior_match"] = True
+
+
+def _add_h2h_features(
+    features: dict,
+    history: pd.DataFrame,
+    home_id: int,
+    away_id: int,
+) -> None:
+    """Add head-to-head features from prior meetings of the two teams.
+
+    Only meetings where **both** teams are present and completed (non-null
+    goals) and with match_date before the target fixture are counted.
+    """
+    h2h = history[
+        ((history["home_team_id"] == home_id) & (history["away_team_id"] == away_id))
+        | ((history["home_team_id"] == away_id) & (history["away_team_id"] == home_id))
+    ].copy()
+    h2h = h2h.sort_values("match_date").reset_index(drop=True)
+    count = len(h2h)
+    if count == 0:
+        features["h2h_home_wins"] = 0
+        features["h2h_home_draws"] = 0
+        features["h2h_home_losses"] = 0
+        features["h2h_total_matches"] = 0
+        return
+
+    wins = draws = losses = 0
+    for _, row in h2h.iterrows():
+        if row["home_team_id"] == home_id:
+            if row["home_goals"] > row["away_goals"]:
+                wins += 1
+            elif row["home_goals"] == row["away_goals"]:
+                draws += 1
+            else:
+                losses += 1
+        else:
+            if row["away_goals"] > row["home_goals"]:
+                wins += 1
+            elif row["away_goals"] == row["home_goals"]:
+                draws += 1
+            else:
+                losses += 1
+
+    features["h2h_home_wins"] = wins
+    features["h2h_home_draws"] = draws
+    features["h2h_home_losses"] = losses
+    features["h2h_total_matches"] = count
+
+
+def _add_rest_features(
+    features: dict,
+    side: str,
+    team_history: pd.DataFrame,
+    target_date: datetime,
+) -> None:
+    """Add days-since-last-match and has-prior-match flags."""
+    if len(team_history) == 0:
+        features[f"{side}_days_since_last_match"] = None
+        features[f"{side}_has_prior_match"] = False
+        return
+
+    last_date_str = str(team_history["match_date"].iloc[-1])
+    last_date = _parse_date(last_date_str)
+    if last_date is None:
+        features[f"{side}_days_since_last_match"] = None
+        features[f"{side}_has_prior_match"] = True
+        return
+
+    delta = target_date - last_date
+    features[f"{side}_days_since_last_match"] = delta.days
+    features[f"{side}_has_prior_match"] = True
+
+
+def _add_h2h_features(
+    features: dict,
+    history: pd.DataFrame,
+    home_id: int,
+    away_id: int,
+) -> None:
+    """Add head-to-head features from prior meetings of the two teams.
+
+    Only meetings where **both** teams are present and completed (non-null
+    goals) and with match_date before the target fixture are counted.
+    """
+    h2h = history[
+        ((history["home_team_id"] == home_id) & (history["away_team_id"] == away_id))
+        | ((history["home_team_id"] == away_id) & (history["away_team_id"] == home_id))
+    ].copy()
+    h2h = h2h.sort_values("match_date").reset_index(drop=True)
+    count = len(h2h)
+    if count == 0:
+        features["h2h_home_wins"] = 0
+        features["h2h_home_draws"] = 0
+        features["h2h_home_losses"] = 0
+        features["h2h_total_matches"] = 0
+        return
+
+    wins = draws = losses = 0
+    for _, row in h2h.iterrows():
+        if row["home_team_id"] == home_id:
+            if row["home_goals"] > row["away_goals"]:
+                wins += 1
+            elif row["home_goals"] == row["away_goals"]:
+                draws += 1
+            else:
+                losses += 1
+        else:
+            if row["away_goals"] > row["home_goals"]:
+                wins += 1
+            elif row["away_goals"] == row["home_goals"]:
+                draws += 1
+            else:
+                losses += 1
+
+    features["h2h_home_wins"] = wins
+    features["h2h_home_draws"] = draws
+    features["h2h_home_losses"] = losses
+    features["h2h_total_matches"] = count

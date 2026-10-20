@@ -1,0 +1,87 @@
+Phase 24 - Probability Calibration & Validated Ensembles
+==========================================================
+Produced: 20261020T084138Z
+Split: train=380 val=380 test=380
+Train max date: 2016-07-31 | Val max date: 2019-07-31
+Test date range: ['2019-08-09', '2020-07-26']
+Production DB sha256: 725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122
+Production DB unchanged: True
+
+Config
+------
+  seed: 42
+  n_boot: 4000
+  boot_seed: 42
+  calibration_protocol: fit on val predictions only; applied to test
+  elo_mapping: DiriEloMapper fit on train+val Elo history
+
+Test metrics - sorted by Brier score (lower is better)
+----------------------------------------------------------------------------
+model                               acc macroF1  logloss   brier
+ens_poisson_lr_optimal            0.524   0.393   0.9925  0.5899
+elo_mapped_temp                   0.511   0.381   0.9958  0.5930
+poisson                           0.532   0.400   0.9974  0.5936
+poisson_temp                      0.532   0.400   0.9974  0.5936
+dixon_coles                       0.532   0.400   0.9974  0.5936
+dixon_coles_temp                  0.532   0.400   0.9974  0.5936
+ens_poisson_li_xgb_equal          0.526   0.418   1.0108  0.5985
+ens_poisson_lr_equal              0.508   0.430   1.0088  0.6004
+ens_poisson_xgb_equal             0.521   0.399   1.0204  0.6035
+ens_calibrated_equal              0.497   0.393   1.0141  0.6037
+poisson_iso                       0.526   0.395   1.1842  0.6050
+dixon_coles_iso                   0.526   0.395   1.1842  0.6050
+elo_mapped_iso                    0.516   0.371   1.1640  0.6096
+elo_mapped                        0.511   0.381   1.0288  0.6175
+logistic_interactions             0.500   0.432   1.0605  0.6218
+logistic_interactions_temp        0.500   0.432   1.0605  0.6218
+logistic_regression_iso           0.497   0.358   1.1843  0.6310
+logistic_regression_temp          0.429   0.393   1.0628  0.6421
+logistic_interactions_iso         0.484   0.424   1.2470  0.6426
+ens_poisson_xgb_optimal           0.445   0.374   1.1178  0.6580
+ens_poisson_li_xgb_optimal        0.445   0.374   1.1178  0.6580
+xgboost                           0.445   0.374   1.1178  0.6580
+logistic_regression               0.429   0.393   1.1171  0.6701
+xgboost_temp                      0.445   0.374   1.2027  0.6910
+ens_calibrated_optimal            0.445   0.374   1.2027  0.6910
+xgboost_iso                       0.445   0.392   2.4455  0.7121
+
+Calibrators fit on validation only
+----------------------------------
+                       poisson temp   temperature_scaling T=1.0
+                       poisson iso    isotonic 
+           logistic_regression temp   temperature_scaling T=2.0
+           logistic_regression iso    isotonic 
+         logistic_interactions temp   temperature_scaling T=1.0
+         logistic_interactions iso    isotonic 
+                   dixon_coles temp   temperature_scaling T=1.0
+                   dixon_coles iso    isotonic 
+                       xgboost temp   temperature_scaling T=0.75
+                       xgboost iso    isotonic 
+                    elo_mapped temp   temperature_scaling T=0.5
+                    elo_mapped iso    isotonic 
+
+Paired significance vs Poisson (log-loss)
+-----------------------------------------
+  poisson/poisson                    McNemar p=1.0000 boot_diff=+0.0000 95%CI=(+0.0000,+0.0000)
+  poisson/logistic_regression        McNemar p=0.0007 boot_diff=+0.1198 95%CI=(+0.0569,+0.1835)
+  poisson/logistic_interactions      McNemar p=0.2713 boot_diff=+0.0631 95%CI=(+0.0083,+0.1198)
+  poisson/dixon_coles                McNemar p=1.0000 boot_diff=-0.0000 95%CI=(-0.0000,+0.0000)
+  poisson/xgboost                    McNemar p=0.0005 boot_diff=+0.1205 95%CI=(+0.0651,+0.1745)
+  poisson/elo_mapped                 McNemar p=0.2800 boot_diff=+0.0314 95%CI=(-0.0074,+0.0693)
+  poisson/ens_poisson_lr_equal       McNemar p=0.3135 boot_diff=+0.0114 95%CI=(-0.0188,+0.0418)
+  poisson/ens_poisson_lr_optimal     McNemar p=0.2500 boot_diff=-0.0049 95%CI=(-0.0116,+0.0019)
+  poisson/ens_poisson_xgb_equal      McNemar p=0.5966 boot_diff=+0.0231 95%CI=(-0.0010,+0.0467)
+  poisson/ens_poisson_xgb_optimal    McNemar p=0.0005 boot_diff=+0.1205 95%CI=(+0.0651,+0.1745)
+  poisson/ens_poisson_li_xgb_equal   McNemar p=0.8776 boot_diff=+0.0134 95%CI=(-0.0139,+0.0408)
+  poisson/ens_poisson_li_xgb_optimal McNemar p=0.0005 boot_diff=+0.1205 95%CI=(+0.0651,+0.1745)
+  poisson/ens_calibrated_equal       McNemar p=0.0725 boot_diff=+0.0167 95%CI=(-0.0118,+0.0461)
+  poisson/ens_calibrated_optimal     McNemar p=0.0005 boot_diff=+0.2053 95%CI=(+0.1301,+0.2775)
+
+Notes
+-----
+- Phase-24 audit confirmed Phase-23 split integrity (train=2015/16, val=2016/17, test=2019/20; 380 each).
+- Calibrators fit on val predictions only; isotonic falls back to identity if a class has <10 positives (small-sample guard).
+- Elo mapped to 3-class via a Dirichlet-style linear-softmax map fit on train+val; NOT treated as native calibrated probabilities.
+- Ensemble weights selected on validation log-loss; test never used.
+- DC rho=0 (MLE on train) collapses DC to independent Poisson; preserved as the faithful Phase-23 result.
+- COVID-19 stationarity caveat inherited from Phase 23.

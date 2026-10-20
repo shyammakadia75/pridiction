@@ -1,0 +1,106 @@
+Phase 25 - Walk-Forward Backtesting Report
+==================================================
+Produced: 20261020T101336Z
+Source: disposable DB (phase23_eval.db) from staged FD E0 CSVs
+Seasons: ['2015/2016', '2016/2017', '2019/2020']
+Production DB sha256: 725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122
+Production DB unchanged: True
+Disposable DB sha256: 9b4d17414a27a84890fc8cafa8f715b38e5c3b557ca034524e028be2080c724a
+
+Strategy: expanding-window chronological walk-forward
+
+Folds
+-----
+  fold1: train=['2015/2016'] val=None test=2016/2017
+    n_train=380 n_val=None n_test=380
+    cutoff=2016-08-13 test_range=[2016-08-13, 2017-05-21]
+  fold2: train=['2015/2016', '2016/2017'] val=2016/2017 test=2019/2020
+    n_train=760 n_val=380 n_test=380
+    cutoff=2019-08-09 test_range=[2019-08-09, 2020-07-26]
+
+  Fold fold1 test metrics (sorted by Brier):
+  ----------------------------------------------------------------------
+  model                               acc macroF1  logloss   brier
+  poisson                           0.566   0.421   0.9549  0.5692
+  poisson_temperature_scaled        0.566   0.421   0.9549  0.5692
+  dixon_coles                       0.566   0.421   0.9549  0.5692
+  ens_poisson_lr_equal              0.545   0.461   0.9818  0.5883
+  ens_poisson_lr_optimal            0.545   0.461   0.9818  0.5883
+  elo_mapped                        0.566   0.412   1.0322  0.6204
+  frequency_baseline                0.492   0.220   1.0555  0.6369
+  xgboost                           0.492   0.220   1.0555  0.6369
+  logistic_regression               0.442   0.394   1.1139  0.6665
+
+  Fold fold2 test metrics (sorted by Brier):
+  ----------------------------------------------------------------------
+  model                               acc macroF1  logloss   brier
+  ens_poisson_lr_optimal            0.526   0.395   0.9925  0.5900
+  poisson                           0.532   0.400   0.9974  0.5936
+  poisson_temperature_scaled        0.532   0.400   0.9974  0.5936
+  dixon_coles                       0.532   0.400   0.9974  0.5936
+  ens_poisson_lr_equal              0.516   0.436   1.0071  0.5994
+  elo_mapped                        0.511   0.381   1.0288  0.6175
+  xgboost                           0.403   0.359   1.0652  0.6426
+  frequency_baseline                0.453   0.208   1.0647  0.6435
+  logistic_regression               0.426   0.388   1.1071  0.6649
+
+Pooled test metrics (all folds, sorted by Brier):
+----------------------------------------------------------------------------
+model                               acc macroF1  logloss   brier
+poisson                           0.549   0.411   0.9761  0.5814
+poisson_temperature_scaled        0.549   0.411   0.9761  0.5814
+dixon_coles                       0.549   0.411   0.9761  0.5814
+ens_poisson_lr_optimal            0.536   0.431   0.9872  0.5892
+ens_poisson_lr_equal              0.530   0.448   0.9945  0.5939
+elo_mapped                        0.538   0.397   1.0305  0.6190
+xgboost                           0.447   0.324   1.0603  0.6397
+frequency_baseline                0.472   0.214   1.0601  0.6402
+logistic_regression               0.434   0.392   1.1105  0.6657
+
+Per-fold paired McNemar vs Poisson (accuracy discordance)
+----------------------------------------------------------------------
+  fold1 poisson/frequency_baseline       McNemar p=0.0097 n01=41 n10=69
+  fold1 poisson/logistic_regression      McNemar p=0.0001 n01=47 n10=94
+  fold1 poisson/poisson_temperature_scaled McNemar p=1.0000 n01=0 n10=0
+  fold1 poisson/dixon_coles              McNemar p=1.0000 n01=0 n10=0
+  fold1 poisson/xgboost                  McNemar p=0.0097 n01=41 n10=69
+  fold1 poisson/elo_mapped               McNemar p=1.0000 n01=25 n10=25
+  fold1 poisson/ens_poisson_lr_equal     McNemar p=0.4030 n01=31 n10=39
+  fold1 poisson/ens_poisson_lr_optimal   McNemar p=0.4030 n01=31 n10=39
+  fold2 poisson/frequency_baseline       McNemar p=0.0050 n01=39 n10=69
+  fold2 poisson/logistic_regression      McNemar p=0.0006 n01=45 n10=85
+  fold2 poisson/poisson_temperature_scaled McNemar p=1.0000 n01=0 n10=0
+  fold2 poisson/dixon_coles              McNemar p=1.0000 n01=0 n10=0
+  fold2 poisson/xgboost                  McNemar p=0.0000 n01=40 n10=89
+  fold2 poisson/elo_mapped               McNemar p=0.2800 n01=17 n10=25
+  fold2 poisson/ens_poisson_lr_equal     McNemar p=0.5118 n01=26 n10=32
+  fold2 poisson/ens_poisson_lr_optimal   McNemar p=0.5000 n01=0 n10=2
+
+Pooled paired significance vs Poisson (log-loss)
+----------------------------------------------------------------------
+  poisson/frequency_baseline         McNemar p=0.0001 boot_diff=+0.0840 95%CI=(+0.0539,+0.1152)
+  poisson/logistic_regression        McNemar p=0.0000 boot_diff=+0.1344 95%CI=(+0.0901,+0.1798)
+  poisson/poisson_temperature_scaled McNemar p=1.0000 boot_diff=+0.0000 95%CI=(-0.0000,+0.0000)
+  poisson/dixon_coles                McNemar p=1.0000 boot_diff=-0.0000 95%CI=(-0.0000,+0.0000)
+  poisson/xgboost                    McNemar p=0.0000 boot_diff=+0.0842 95%CI=(+0.0538,+0.1147)
+  poisson/elo_mapped                 McNemar p=0.4657 boot_diff=+0.0544 95%CI=(+0.0290,+0.0799)
+  poisson/ens_poisson_lr_equal       McNemar p=0.2504 boot_diff=+0.0183 95%CI=(-0.0017,+0.0380)
+  poisson/ens_poisson_lr_optimal     McNemar p=0.2888 boot_diff=+0.0110 95%CI=(-0.0032,+0.0257)
+
+Brier convention: multiclass = mean over samples of sum_c (p_ic - 1{c=ic})^2
+  (uniform prediction scores 2/3; perfect scores 0)
+
+Notes
+-----
+- Walk-forward uses expanding window over 3 verified E0 seasons.
+- Fold 1: train=2015/16, test=2016/17. Fold 2: train=2015/16+2016/17, test=2019/20 (COVID-gap).
+- Online models warmed on ALL pre-test data; fitted models use val hold-out for tuning when >=2 train seasons available.
+- DC rho fit by MLE on training window only; may collapse near 0.
+- Elo mapped to 3-class via DiriEloMapper; NOT native calibrated.
+- Temperature scaling fit on val predictions only; no-val folds T=1.0.
+- All predictions use strictly-pre-match history (strict < date cutoff).
+- Production DB opened read-only and SHA-256 gated (fail-closed).
+- Pooled results concatenate disjoint test fixtures across folds.
+- Only 3 seasons available; walk-forward limited to 2 folds.
+- COVID-19 gap in 2019/20 is a documented stationarity discontinuity.
+- No fabricating matches, odds, predictions, or results.

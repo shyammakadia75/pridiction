@@ -729,8 +729,121 @@ def cmd_ratings_poisson(args: argparse.Namespace) -> int:
             continue
         print(f"  Saved: {art['json']}")
         print(f"  Saved: {art['txt']}")
-    return rc
+        return rc
 
+
+def cmd_predict(args: argparse.Namespace) -> int:
+    """football-intelligence predict -- Poisson match prediction."""
+    setup_logging()
+    from .prediction import (
+        predict_match,
+        build_explanation,
+    )
+
+    try:
+        db_path = resolve_db_path(args.db_path)
+    except Exception as exc:
+        print(f"ERROR: cannot resolve database path: {exc}", file=sys.stderr)
+        return 1
+    if not Path(db_path).exists():
+        print(f"ERROR: database not found at '{db_path}'", file=sys.stderr)
+        return 1
+
+    try:
+        prediction = predict_match(
+            provider=args.provider,
+            provider_competition_id=args.competition_id,
+            home_team=args.home_team,
+            away_team=args.away_team,
+            season_name=args.season,
+            target_date=args.target_date,
+            model=args.model,
+            max_goals=args.max_goals,
+            min_history=args.min_history,
+            prior_strength=args.prior_strength,
+            db_path=db_path,
+        )
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    if args.as_json:
+        import json
+        output = prediction.to_dict()
+        if args.explain:
+            expl = build_explanation(
+                None, prediction,
+                training_cutoff=prediction.fixture_date,
+            )
+            output["explanation"] = {
+                "model": expl.model,
+                "model_version": expl.model_version,
+                "training_cutoff": expl.training_cutoff,
+                "features_available": expl.features_available,
+                "reasoning": expl.reasoning,
+                "limitations": expl.limitations,
+                "backtest_metrics": expl.backtest_metrics,
+                "warnings": expl.warnings,
+            }
+        print(json.dumps(output, indent=2))
+        return 0
+
+    # Readable text output
+    print(f"Prediction ({prediction.model} / {prediction.model_version})")
+    print(f"Competition: {prediction.competition_name} ({prediction.provider})")
+    if prediction.season_name:
+        print(f"Season: {prediction.season_name}")
+    print(f"Fixture date: {prediction.fixture_date}")
+    print(f"{prediction.home_team_name} vs {prediction.away_team_name}")
+    print()
+    print("Outcome probabilities (class order: home_win, draw, away_win):")
+    print(f"  Home win: {prediction.home_win_prob:.4f}")
+    print(f"  Draw:     {prediction.draw_prob:.4f}")
+    print(f"  Away win: {prediction.away_win_prob:.4f}")
+    print(f"  Sum: {prediction.home_win_prob + prediction.draw_prob + prediction.away_win_prob:.6f}")
+    print()
+    print(f"Expected goals: home={prediction.expected_home_goals:.3f}, "
+          f"away={prediction.expected_away_goals:.3f}")
+    print(f"Most likely scoreline: "
+          f"{prediction.most_probable_scoreline[0]}-"
+          f"{prediction.most_probable_scoreline[1]} "
+          f"(P={prediction.most_probable_scoreline[2]:.4f})")
+    print()
+    print("Top 5 scorelines:")
+    for h, a, p in prediction.top_scorelines:
+        print(f"  {h}-{a}: {p:.4f}")
+    print()
+    print("Over/Under:")
+    for line, probs in prediction.over_under.items():
+        print(f"  O/U {line}: over={probs['over']:.4f} under={probs['under']:.4f}")
+    print()
+    print(f"BTTS: Yes={prediction.btts['yes']:.4f} No={prediction.btts['no']:.4f}")
+    print()
+    print("Double chance:")
+    for market, prob in prediction.double_chance.items():
+        print(f"  {market}: {prob:.4f}")
+    print()
+    if prediction.notes:
+        print("Notes:")
+        for note in prediction.notes:
+            print(f"  - {note}")
+    print()
+    if args.explain:
+        expl = build_explanation(
+            None, prediction,
+            training_cutoff=prediction.fixture_date,
+        )
+        print("Explanation:")
+        print(f"  Model: {expl.model} ({expl.model_version})")
+        print(f"  Training cutoff: {expl.training_cutoff}")
+        print(f"  Features used: {', '.join(expl.features_available[:3])}...")
+        print(f"  Backtest metrics (Phase-25 pooled):")
+        for k, v in expl.backtest_metrics.items():
+            print(f"    {k}: {v:.4f}")
+        print(f"  Limitations:")
+        for lim in expl.limitations:
+            print(f"    - {lim}")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1018,6 +1131,33 @@ def build_parser() -> argparse.ArgumentParser:
         help='Fallback strength for teams with insufficient history (default: 1.0).')
     poisson.set_defaults(func=cmd_ratings_poisson)
 
+    # -- Predict subcommand (Phase 26) -------------------------------------
+    predict = subparsers.add_parser(
+        "predict",
+        help="Predict a single match using the Poisson goal model (read-only).",
+    )
+    predict.add_argument("--db-path", default=None)
+    predict.add_argument("--provider", default="statsbomb")
+    predict.add_argument("--competition-id", dest="competition_id", type=str,
+                         required=True)
+    predict.add_argument("--season", dest="season", default=None)
+    predict.add_argument("--date", dest="target_date", default=None,
+                         help="Target fixture date as ISO YYYY-MM-DD.")
+    predict.add_argument("--home-team", dest="home_team", type=str,
+                         required=True)
+    predict.add_argument("--away-team", dest="away_team", type=str,
+                         required=True)
+    predict.add_argument("--model", default="poisson", choices=["poisson"])
+    predict.add_argument("--max-goals", dest="max_goals", type=int, default=8)
+    predict.add_argument("--min-history", dest="min_history", type=int,
+                         default=5)
+    predict.add_argument("--prior-strength", dest="prior_strength", type=float,
+                         default=1.0)
+    predict.add_argument("--json", dest="as_json", action="store_true",
+                         help="Output machine-readable JSON.")
+    predict.add_argument("--explain", action="store_true",
+                         help="Include a model explanation in the output.")
+    predict.set_defaults(func=cmd_predict)
 
     return parser
 

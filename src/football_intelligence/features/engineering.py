@@ -53,11 +53,14 @@ class FeatureSpec:
         include_home_away_split: If True, also compute venue-specific
             performance features.
         include_head_to_head: If True, compute historical H2H features.
+        include_recency_weighted: If True, also compute recency-weighted
+            form features for the last-5-match window.
     """
 
     lookback_windows: tuple[int, ...] = DEFAULT_LOOKBACK_WINDOWS
     include_home_away_split: bool = True
     include_head_to_head: bool = True
+    include_recency_weighted: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +82,7 @@ class FeatureEngineer:
         lookback_windows: Sequence[int] | None = None,
         include_home_away_split: bool = True,
         include_head_to_head: bool = True,
+        include_recency_weighted: bool = True,
     ) -> None:
         windows = (
             list(lookback_windows)
@@ -87,8 +91,9 @@ class FeatureEngineer:
         )
         self.spec = FeatureSpec(
             lookback_windows=tuple(sorted(windows)),
-                        include_home_away_split=include_home_away_split,
+            include_home_away_split=include_home_away_split,
             include_head_to_head=include_head_to_head,
+            include_recency_weighted=include_recency_weighted,
         )
 
     # -- public API ---------------------------------------------------------
@@ -154,6 +159,13 @@ class FeatureEngineer:
 
             # Section C: rest and schedule
             _add_rest_features(features, side, team_history, target_date)
+
+            # Section D: recency-weighted form (last 5 matches)
+            if (
+                self.spec.include_recency_weighted
+                and 5 in self.spec.lookback_windows
+            ):
+                _add_recency_features(features, side, team_history, team_id, 5)
 
         # Section D: head-to-head (optional)
         if self.spec.include_head_to_head:
@@ -467,7 +479,9 @@ def _add_form_features(
 
     For each window *N* in *windows*, the last *N* completed matches in
     *team_history* are used to compute: points, wins, draws, losses,
-    goals scored, goals conceded, goal difference, and matches played.
+    goals scored, goals conceded, goal difference, matches played,
+    points per match, average goals scored/conceded per match, clean
+    sheets, and matches in which the team scored.
 
     Cold start: when the team has fewer than *N* (or zero) prior matches,
     all statistics are ``None`` and ``matches_played`` records the actual
@@ -478,13 +492,18 @@ def _add_form_features(
         count = len(recent)
         if count == 0:
             for suffix in ("points", "wins", "draws", "losses",
-                           "goals_scored", "goals_conceded", "goal_diff"):
+                           "goals_scored", "goals_conceded", "goal_diff",
+                           "points_per_match", "avg_goals_scored",
+                           "avg_goals_conceded", "clean_sheets",
+                           "matches_scored"):
                 features[f"{side}_{suffix}_last_{n}"] = None
             features[f"{side}_matches_played_last_{n}"] = 0
         else:
             wins = draws = losses = 0
             goals_scored = 0
             goals_conceded = 0
+            clean_sheets = 0
+            matches_scored = 0
             points_list: list[int] = []
             for _, row in recent.iterrows():
                 pts = _team_points(row, team_id)
@@ -505,8 +524,13 @@ def _add_form_features(
                     draws += 1
                 else:
                     losses += 1
+                if ga == 0:
+                    clean_sheets += 1
+                if gf > 0:
+                    matches_scored += 1
 
-            features[f"{side}_points_last_{n}"] = sum(points_list)
+            total_points = sum(points_list)
+            features[f"{side}_points_last_{n}"] = total_points
             features[f"{side}_wins_last_{n}"] = wins
             features[f"{side}_draws_last_{n}"] = draws
             features[f"{side}_losses_last_{n}"] = losses
@@ -514,6 +538,11 @@ def _add_form_features(
             features[f"{side}_goals_conceded_last_{n}"] = goals_conceded
             features[f"{side}_goal_diff_last_{n}"] = goals_scored - goals_conceded
             features[f"{side}_matches_played_last_{n}"] = count
+            features[f"{side}_points_per_match_last_{n}"] = total_points / count
+            features[f"{side}_avg_goals_scored_last_{n}"] = goals_scored / count
+            features[f"{side}_avg_goals_conceded_last_{n}"] = goals_conceded / count
+            features[f"{side}_clean_sheets_last_{n}"] = clean_sheets
+            features[f"{side}_matches_scored_last_{n}"] = matches_scored
 
 
 def _add_venue_features(
@@ -526,6 +555,15 @@ def _add_venue_features(
 
     For the **home** side: only the team's home matches are used.
     For the **away** side: only the team's away matches are used.
+
+    Venue-specific features mirror the overall form features: points,
+    wins, draws, losses, goals scored/conceded, goal difference,
+    points per match, and clean sheets.
+
+    Missing-history strategy: when no venue-specific matches exist,
+    all statistics are ``None`` and ``matches`` records 0.  Overall
+    form features are NOT substituted here (see :func:`_add_form_features`
+    for overall form).
     """
     if side == "home":
         venue_history = team_history[team_history["home_team_id"] == team_id]
@@ -537,14 +575,17 @@ def _add_venue_features(
     venue_history = venue_history.tail(5)
     count = len(venue_history)
     if count == 0:
-        features[f"{side}_points_at_{label}_last_5"] = None
-        features[f"{side}_goals_scored_at_{label}_last_5"] = None
-        features[f"{side}_goals_conceded_at_{label}_last_5"] = None
+        for suffix in ("points", "wins", "draws", "losses",
+                       "goals_scored", "goals_conceded", "goal_diff",
+                       "points_per_match", "clean_sheets"):
+            features[f"{side}_{suffix}_at_{label}_last_5"] = None
         features[f"{side}_matches_at_{label}_last_5"] = 0
     else:
-        points_list: list[int] = []
+        wins = draws = losses = 0
         goals_scored = 0
         goals_conceded = 0
+        clean_sheets = 0
+        points_list: list[int] = []
         for _, row in venue_history.iterrows():
             pts = _team_points(row, team_id)
             if row["home_team_id"] == team_id:
@@ -558,10 +599,25 @@ def _add_venue_features(
             if pts is None:
                 pts = 0
             points_list.append(pts)
+            if pts == 3:
+                wins += 1
+            elif pts == 1:
+                draws += 1
+            else:
+                losses += 1
+            if ga == 0:
+                clean_sheets += 1
 
-        features[f"{side}_points_at_{label}_last_5"] = sum(points_list)
+        total_points = sum(points_list)
+        features[f"{side}_points_at_{label}_last_5"] = total_points
+        features[f"{side}_wins_at_{label}_last_5"] = wins
+        features[f"{side}_draws_at_{label}_last_5"] = draws
+        features[f"{side}_losses_at_{label}_last_5"] = losses
         features[f"{side}_goals_scored_at_{label}_last_5"] = goals_scored
         features[f"{side}_goals_conceded_at_{label}_last_5"] = goals_conceded
+        features[f"{side}_goal_diff_at_{label}_last_5"] = goals_scored - goals_conceded
+        features[f"{side}_points_per_match_at_{label}_last_5"] = total_points / count
+        features[f"{side}_clean_sheets_at_{label}_last_5"] = clean_sheets
         features[f"{side}_matches_at_{label}_last_5"] = count
 
 
@@ -587,6 +643,49 @@ def _add_rest_features(
     delta = target_date - last_date
     features[f"{side}_days_since_last_match"] = delta.days
     features[f"{side}_has_prior_match"] = True
+
+
+def _add_recency_features(
+    features: dict,
+    side: str,
+    team_history: pd.DataFrame,
+    team_id: int,
+    n: int = 5,
+) -> None:
+    """Add recency-weighted form features for the last *n* matches.
+
+    Uses **linearly increasing weights** (oldest match = weight 1,
+    newest match = weight *n*) so that more recent results contribute
+    more to the feature value.  The formula is:
+
+        recency_weighted_ppm = sum(w_i * pts_i) / sum(w_i)
+
+    where ``w_i`` is the 1-indexed position from oldest to newest
+    (so weights = 1, 2, ..., n) and ``pts_i`` in {0, 1, 3} is the
+    points earned in match *i*.
+
+    When fewer than *n* prior matches exist, all available matches
+    are weighted (weights = 1, 2, ..., count).  When zero matches
+    exist, the feature is ``None``.
+    """
+    recent = team_history.tail(n)
+    count = len(recent)
+    if count == 0:
+        features[f"{side}_recency_weighted_points_last_{n}"] = None
+        features[f"{side}_recency_matches_last_{n}"] = 0
+        return
+
+    weights = list(range(1, count + 1))
+    total_weight = sum(weights)
+    weighted_sum = 0.0
+    for i, (_, row) in enumerate(recent.iterrows()):
+        pts = _team_points(row, team_id)
+        if pts is None:
+            pts = 0
+        weighted_sum += weights[i] * pts
+
+    features[f"{side}_recency_weighted_points_last_{n}"] = weighted_sum / total_weight
+    features[f"{side}_recency_matches_last_{n}"] = count
 
 
 def _add_h2h_features(

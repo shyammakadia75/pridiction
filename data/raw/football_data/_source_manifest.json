@@ -1,0 +1,41 @@
+{
+  "staged_dir": "C:\\pridection\\pridiction\\data\\raw\\football_data\\E0",
+  "files": [
+    {
+      "season_code": "1516",
+      "season_name": "2015/16",
+      "canonical_url": "https://www.football-data.co.uk/mmz4281/1516/E0.csv",
+      "local_cache": "C:\\Users\\shyam\\AppData\\Local\\Temp\\epl_fd\\E0_1516.csv",
+      "local_sha256": "bd3502a18c38a1597fd9af62e2366b4015006d3528dd4d18b311bd6237bbc085",
+      "local_bytes": 100656,
+      "acquisition_method": "staged from local %TEMP% cache (NOT a fresh download)",
+      "download_status": "FAILED URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1032)>",
+      "provenance": "local cache used; network download failed (network reachable per docs but refused/timed out)",
+      "staged_path": "data\\raw\\football_data\\E0\\1516.csv"
+    },
+    {
+      "season_code": "1617",
+      "season_name": "2016/17",
+      "canonical_url": "https://www.football-data.co.uk/mmz4281/1617/E0.csv",
+      "local_cache": "C:\\Users\\shyam\\AppData\\Local\\Temp\\epl_fd\\E0_1617.csv",
+      "local_sha256": "9625a7652b5f98fbd3e2e4d378c851fc246693f3343e34a72428d5b6e864d3e0",
+      "local_bytes": 99990,
+      "acquisition_method": "staged from local %TEMP% cache (NOT a fresh download)",
+      "download_status": "FAILED URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1032)>",
+      "provenance": "local cache used; network download failed (network reachable per docs but refused/timed out)",
+      "staged_path": "data\\raw\\football_data\\E0\\1617.csv"
+    },
+    {
+      "season_code": "1920",
+      "season_name": "2019/20",
+      "canonical_url": "https://www.football-data.co.uk/mmz4281/1920/E0.csv",
+      "local_cache": "C:\\Users\\shyam\\AppData\\Local\\Temp\\epl_fd\\E0_1920.csv",
+      "local_sha256": "100037618b94f94057400bb02bf6bac4ef74ddaa58cde4b38370839c39caee61",
+      "local_bytes": 175475,
+      "acquisition_method": "staged from local %TEMP% cache (NOT a fresh download)",
+      "download_status": "FAILED URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1032)>",
+      "provenance": "local cache used; network download failed (network reachable per docs but refused/timed out)",
+      "staged_path": "data\\raw\\football_data\\E0\\1920.csv"
+    }
+  ]
+}

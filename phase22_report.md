@@ -86,3 +86,48 @@ the two seasons Phase-21 evaluates on. There is **no multi-season real data in p
 **This audit is read-only; no ingestion was performed and the production DB was not
 touched (SHA `725af574…` verified unchanged).**
 
+---
+
+## 9. Implementation status (Steps 1-5 complete)
+
+**Status: Steps 1-5 VERIFIED GREEN — do NOT begin Phase 23 (stronger models)
+until explicit approval; no production DB writes planned.**
+
+- **Step 1 (source cache):** staged `data/raw/football_data/E0/{1516,1617,1920}.csv`,
+  SHA-256 verified byte-for-byte. Each: 380 rows x 20 teams, 0 dupes/score errors/
+  date failures. `_source_manifest.json` documents canonical URLs + acquisition
+  method (fresh-download reproducibility check ran; sandbox network refused requests
+  -> staged from verified local cache transparently documented, not mislabeled).
+- **Step 2 (team-identity gate):** 26 distinct FD names -> 26 distinct canonicals,
+  **0 collisions** (injective). No prod normalizer edit needed. 14 bare names
+  (FD-only stable canonicals); cross-source FD<->SB gap documented but no real
+  collision.
+- **Step 3a (FD-only disposable ingestion):** 1140 matches; 0 dup
+  `provider_match_id`; 0 dup `(date,home,away)`; 0 negative goals; 1140 distinct
+  fixtures; idempotent rerun (0 inserts / 380 updates per season); `PRAGMA
+  integrity_check`=ok; clean FKs; single `team_name` per `provider_team_id`.
+- **Step 3.5 (cross-source reconciliation):** SB 2015/16 replicated read-only into a
+  SECOND disposable DB; over SB-seeded DB, FD 2015/16 = 210 skipped + 170 inserted as
+  duplicates + 0 ambiguous. 5 mismatched-name clubs (Leicester/Norwich/Stoke/Swansea/
+  West Brom). Duplicates preserved, not discarded. Shared `_normalize_team_name`
+  left untouched (no real collision per gate).
+- **Step 2.6 (tests):** added `tests/test_team_identity.py` (29 cases) covering alias
+  resolution, case/punctuation, unknown-name retention, injectivity gate,
+  cross-season name stability, and the 5-club cross-source gap (fail-closed
+  regression marker). New tests: 29 passed. Full suite: 462 passed, 0 failures.
+- **Step 4 (manifest):** written to `reports/phase22/dataset_manifest.md` (full:
+  seasons, URLs+status, SHA-256/size/rows per file, pre/post row counts, canonical
+  team mapping table, unresolved aliases, excluded fixtures + reasons,
+  reconciliation results, final match counts, integrity results, exact
+  reproduction commands, prod-hash evidence).
+- **Step 5 (modelling suitability):** per-season rows are file-chronological (date-based
+  train/later-dates split feasible, no leakage). 2019/20 shows a 100-day COVID-19 gap
+  (2020-03-09 -> 2020-06-17). Limitations: no odds for 2017-2020, missing kickoff
+  `Time` except 1920, bare-name FD<->SB dedup gap requiring alias expansion before any
+  merge. Full analysis in the manifest (Section 10).
+
+**Open question requiring approval:** sandbox network refused fresh
+`football-data.co.uk` downloads -- sources are staged from a verified local cache
+with provenance documented in `_source_manifest.json`. If the user wants to retry
+network acquisition, that is the only blocker to full network reproducibility.
+

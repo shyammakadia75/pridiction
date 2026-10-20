@@ -12,6 +12,10 @@ SHA-256 (start) = `725AF574B88DC033BD3B00928DE503F9BD9A836FBE4252832B7812DCE0AB3
 - Phase 19 (Elo ratings + `ratings elo` CLI) -- COMPLETE (see `phase19_report.md`).
 - Phase 20 (independent Poisson goal model + `ratings poisson` CLI) -- COMPLETE (see
   `phase20_report.md`; 34 tests in `tests/test_prediction_poisson.py`).
+- Phase 21 (model comparison: Poisson vs. logistic vs. Elo on identical chronological
+  test fixtures + same-day Elo leakage fix; CLI `model compare`) -- COMPLETE
+  (see `phase21_report.md`; 16 tests in `tests/test_model_compare.py` +
+  `tests/test_cli_model_compare.py`).
 
 ## Phases in progress
 - Phase 17 -- COMPLETE.
@@ -25,11 +29,17 @@ SHA-256 (start) = `725AF574B88DC033BD3B00928DE503F9BD9A836FBE4252832B7812DCE0AB3
   - 17.4 Genuine results data validation -- COMPLETE (real E0 CSVs validated +
     ingested into a temp DB; see `phase17_5_report.md` appendix).
   - 17.5 Disposable import rehearsal -- COMPLETE (`_p17_5_rehearsal.py`; both orders).
-  - Phases 18-19 -- COMPLETE. Phase 20 (Poisson) -- COMPLETE; Phases 21-24 pending.
+  - Phases 18-21 -- COMPLETE. Phase 22 (multi-season dataset expansion): audit complete;
+    implementation pending on a disposable DB. Phases 23-24 pending.
 
 ## Last test result
-- Full suite: `417 passed` (383 prior suite + 34 new Phase-20 poisson tests), 0 failures,
-  0 skips. Command: `.venv\Scripts\python.exe -m pytest -q`.
+- Full suite: `433 passed` (417 prior + 16 new Phase-21 tests), 0 failures, 0 skips.
+  Command: `.venv\Scripts\python.exe -m pytest -q`.
+- Phase-21 subset: `16 passed` (`tests/test_model_compare.py` + `tests/test_cli_model_compare.py`).
+- Regression sweep (disjoint post-cleanup batches, production DB read-only):
+  247 + 113 + 39 + 24 = `423 passed`, 0 failures; remaining CLI test files
+  (`test_cli_model_evaluate`, `test_cli_ratings_elo`) re-run green (pytest exit 0).
+  Production DB SHA-256 unchanged (`725af574…`).
 - Phase-20 poisson subset: `34 passed`. Command:
   `.venv\Scripts\python.exe -m pytest tests/test_prediction_poisson.py -q`.
 - Production DB SHA-256 unchanged across the full Phase-20 run:
@@ -73,5 +83,43 @@ SHA-256 (start) = `725AF574B88DC033BD3B00928DE503F9BD9A836FBE4252832B7812DCE0AB3
   optimization, out of phase scope.
 
 ## Next unfinished phase
-- Phase 21 (model comparison: Poisson vs logistic vs Elo on identical chronological
-  test fixtures): next. Read-only harness reused from Phases 18-20.
+- Phase 22 (expand the verified real historical dataset to multiple seasons): next.
+  Audit of data sources / ingestion adapters / team-identity mapping complete
+     (see `phase22_report.md`). Implementation pending on a disposable DB.
+
+## Phase 22 -- multi-season dataset (Steps 1-5: COMPLETE)
+
+- **Production DB held read-only throughout.** SHA-256 re-verified (6x) after every
+  step, including after the full test-suite run:
+  `725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122` (unchanged).
+- **Sources staged** in `data/raw/football_data/E0/{1516,1617,1920}.csv` (gitignored
+  cache), SHA-256 verified byte-for-byte. Fresh-download reproducibility check ran;
+  sandbox network refused requests (SSL/CERTIFICATE_VERIFY_FAILED) -- provenance
+  documented transparently in `_source_manifest.json` (local-cache staging, not
+  mislabeled as a fresh download).
+- **Team-identity gate (Step 2):** 26 distinct FD names -> 26 distinct canonicals,
+  **0 collisions** (injective). Shared `_normalize_team_name` left untouched.
+- **Tests added (Step 2.6):** `tests/test_team_identity.py` (29 cases) covering
+  alias resolution, case/punctuation tolerance, unknown-name retention, the
+  injectivity gate, cross-season spelling stability, and the documented 5-club
+  FD<->SB alias gap (fail-closed regression marker).
+- **Disposable ingestion (Step 3a):** 1140 matches (3x380), 0 dup
+  `provider_match_id`, 0 dup `(date,home,away)`, 0 negative goals, idempotent
+  rerun (0 inserts / 380 updates per season), `PRAGMA integrity_check`=ok, clean FKs,
+  single `team_name` per `provider_team_id`.
+- **Cross-source reconciliation (Step 3.5):** SB 2015/16 replicated read-only into a
+  second disposable DB; over SB-seeded DB, FD 2015/16 = 210 skipped + 170 inserted as
+  duplicates + 0 ambiguous. 5 mismatched-name clubs identified; duplicates preserved
+  (not discarded), exactly as required.
+- **Manifest (Step 4):** `reports/phase22/dataset_manifest.md` written (full:
+  seasons, URLs+status, SHA-256/size/rows per file, canonical team mapping table,
+  unresolved aliases, excluded fixtures + reasons, ingestion + reconciliation
+  results, integrity results, prod-hash evidence, exact reproduction commands).
+- **Modelling suitability (Step 5):** each season's rows are file-chronological
+  (date-based train/later-dates split feasible, no leakage). 2019/20 shows a
+  100-day COVID-19 gap (2020-03-09 -> 2020-06-17) -- a documented discontinuity to
+  reset on. Limitations documented (no odds 2017-20, missing kickoff `Time` except
+  1920, bare-name FD<->SB dedup gap requiring alias expansion before any merge).
+- **Test results:** focused `tests/test_team_identity.py` -> 29 passed; full suite
+  -> 462 passed, 0 failures (was 433 at prior checkpoint; +29 new team-identity
+  cases). `phase22_tests_teamid.log` and `phase22_full.log` captured.

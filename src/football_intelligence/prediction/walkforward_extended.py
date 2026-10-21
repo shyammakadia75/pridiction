@@ -101,15 +101,25 @@ def build_extended_folds(
 ) -> list[wf.Folds]:
     """Build the Phase-25 seasonal folds plus intra-season folds from 2019/20.
 
-    Seasonal folds (identical to Phase 25):
-        fold1: train=2015/16,          test=2016/17
-        fold2: train=2015/16+2016/17,  test=2019/20
+        Seasonal folds (identical to Phase 25):
+        fold1: train=2015/2016,           test=2016/2017
+        fold2: train=2015/2016+2016/2017,  test=2019/2020
 
     Intra-season folds (Phase 26.8 addition):
-        fold3: train=2015/16+2016/17, test=2019/20 (matches from 2019-12-29 onward)
-        fold4: train=2015/16+2016/17, test=2019/20 (matches from 2020-03-09 onward)
+        fold3: train=2015/2016+2016/2017, test=2019/2020 (matches from 2019-12-29 onward)
+        fold4: train=2015/2016+2016/2017, test=2019/2020 (matches from 2020-03-09 onward)
 
-    All four test sets are pairwise disjoint, enabling valid pooled estimates.
+    Test-set overlap structure:
+        fold1  test = full 2016/2017 season (380 matches) -- disjoint from all others.
+        fold2  test = full 2019/2020 season (380 matches).
+        fold3  test = 91 matches from 2019/2020 (2019-12-29 to 2020-03-08) -- subset of fold2.
+        fold4  test = 93 matches from 2019/2020 (2020-03-09 to 2020-07-26) -- subset of fold2.
+
+    fold2 overlaps with fold3/fold4; fold3 and fold4 are disjoint from each other.
+    For clean (no-overlap) pooled estimates use:
+        pooled_seasonal = fold1 + fold2   (disjoint)
+        pooled_intra    = fold1 + fold3 + fold4 (disjoint)
+    The ``pooled`` pool (all four folds) is NOT disjoint and is informational only.
 
     Args:
         raw: Raw match DataFrame with columns season_name, match_date, etc.
@@ -536,7 +546,10 @@ def run_walkforward_extended(
             "No additional historical data was available locally; intra-season "
             "folds reuse the same verified 3-season E0 dataset.",
             "Fast mode evaluates only Poisson, LR, and frequency baseline.",
-            "Brier decomposition follows Murphy (1973) formulation.",
+            "Brier decomposition follows Murphy (1973) formulation; the \"check\" "
+            "(reliability - resolution + uncertainty) uses binned estimates and"
+            " may differ from the directly-computed Brier by <0.005 due to"
+            " within-bin approximation.",
             "Production DB opened read-only and SHA-256 gated (fail-closed).",
             "Only verified local data used -- no fabrication of matches, odds, "
             "or predictions.",
@@ -645,11 +658,11 @@ def write_extended_report_txt(report: dict, path: Path) -> None:
     for pool_name, dec in report["brier_decomposition"].items():
         d = dec.get("poisson", {})
         L.append(f"  {pool_name}:")
-        L.append(f"    brier={d.get('brier', 0):.4f} "
-                 f"reliability={d.get('reliability', 0):.4f} "
-                 f"resolution={d.get('resolution', 0):.4f} "
-                 f"uncertainty={d.get('uncertainty', 0):.4f} "
-                 f"recon={d.get('check', 0):.4f}")
+        L.append(f"    brier={d.get('brier', 0):.6f} "
+                 f"reliability={d.get('reliability', 0):.6f} "
+                 f"resolution={d.get('resolution', 0):.6f} "
+                 f"uncertainty={d.get('uncertainty', 0):.6f} "
+                 f"recon={d.get('check', 0):.6f}")
 
     L.append("")
     L.append("## Paired Significance vs Poisson (pooled)")

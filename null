@@ -1,0 +1,9 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0 -- C:\pridection\pridiction\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\pridection\pridiction
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collecting ... collected 0 items
+
+============================ no tests ran in 0.02s ============================

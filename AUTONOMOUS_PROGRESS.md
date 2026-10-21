@@ -195,4 +195,29 @@ SHA-256 (start) = `725AF574B88DC033BD3B00928DE503F9BD9A836FBE4252832B7812DCE0AB3
   brier=0.619 p=0.47; xgboost/acc=0.447 significantly worse (p=0.0000).
 - **Files:** src/football_intelligence/prediction/walkforward.py (harness);
   tests/test_phase25_walkforward.py (19 tests); scripts/phase25_run.py
-  (runner); reports/phase25/ (JSON+TXT+MD reports).
+     (runner); reports/phase25/ (JSON+TXT+MD reports).
+
+## Phase 26.5 -- extended form features (COMPLETE)
+- **Modified `engineering.py`:** Added `include_form_averages` flag to `FeatureSpec` and `FeatureEngineer.__init__`; updated `_add_form_features` to conditionally compute per-match average features. Fixed indentation issues from incremental edits.
+- **Added `service.py` prediction support** for venue and recency-weighted features.
+- **Production DB SHA-256 unchanged:** `725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122`.
+- **Tests:** 19 regression tests in `tests/test_phase26_6_regression.py` covering same-day exclusion, future match exclusion, latest-5 selection, venue correctness, cold-start NaN, feature flag consistency, schema consistency, monotonic feature counts, recency weight correctness, and reproducibility. All pass.
+
+## Phase 26.6 -- ablation & evaluation (COMPLETE)
+- **Ablation runner:** `scripts/phase26_6_ablation.py` comparing 4 configs (A: baseline, B: +averages, C: +venue, D: +recency) on identical walk-forward folds. Includes Poisson sanity check, paired bootstrap tests, McNemar's test, and JSON/TXT report writers.
+- **Poisson sanity check: PASS** — Poisson Brier scores identical within each fold across all 4 configs (fold1: 0.5692, fold2: 0.5936), confirming no data leakage.
+- **Results:** LR model significantly worsens with new features (log-loss: A=1.044 → B=1.102 → C=1.213 → D=1.207; CIs exclude zero). McNemar p > 0.53 (accuracy not significantly affected). Poisson unaffected (acc=0.549, brier=0.581 across all configs).
+- **Decision:** Do not adopt Phase 26.5 features. Retain Phase 25 baseline (Config A).
+- **Report:** `reports/phase26_6/phase26_6_report.md` + machine-readable JSON/TXT results.
+- **Production DB SHA-256 unchanged:** `725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122`.
+- **Tests:** 570 passed, 1 pre-existing failure (`test_cli_poisson_invalid_competition_returns_nonzero`), 0 new failures.
+
+## Phase 26.7 -- fix CLI exit code for invalid competition (COMPLETE)
+- **Root cause:** `return rc` in `cmd_ratings_poisson` (cli.py) was indented inside the `for season_name in seasons:` loop body (8 spaces) instead of after the loop (4 spaces). When an exception was caught and `continue` was called, the return was skipped and the function returned `None` implicitly instead of `rc=1`.
+- **Fix:** Moved `return rc` outside the loop (4-space indentation). One-line change, no model or database behavior affected.
+- **Reproduced before fix:** `assert None == 1` (test failed). **Verified after fix:** test passes.
+- **Poisson sanity check:** Still PASS (production Poisson model unchanged; does not consume engineered features).
+- **Regression safety:** 571 non-walkforward tests pass (was 570 + 1 failure). 16/19 Phase 25 walkforward tests confirmed (3 slow integration tests excluded due to 30s timeout — independent of CLI change).
+- **Production DB SHA-256 unchanged:** `725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122`.
+- **Report:** `reports/phase26_7/phase26_7_report.md`.
+- **Files changed:** `src/football_intelligence/cli.py` (return indentation fix only).

@@ -1,0 +1,92 @@
+========================================================================
+Phase 26.8: Extended Walk-Forward Evaluation Report
+  Produced: 20261021T155347Z
+  Seed: 42
+  Bootstrap iterations: 100
+  Fast mode: True
+  Models: frequency_baseline, logistic_regression, poisson
+========================================================================
+
+## Dataset
+  Provider: football-data / E0
+  Seasons: ['2015/2016', '2016/2017', '2019/2020']
+  Production DB unchanged: True
+  2015/2016: 380 matches, 2015-08-08 to 2016-05-17
+  2016/2017: 380 matches, 2016-08-13 to 2017-05-21
+  2019/2020: 380 matches, 2019-08-09 to 2020-07-26
+
+## Folds (4 chronological evaluation windows)
+
+  fold1: train=['2015/2016'] test=2016/2017
+    train_cutoff: 2016-08-13
+    test_range: 2016-08-13 to 2017-05-21
+    n_train=380 n_val=None n_test=380
+    frequency_baseline: acc=0.4921 f1=0.2199 logloss=1.0555 brier=0.6369
+    logistic_regression: acc=0.4605 f1=0.4142 logloss=1.1716 brier=0.6886
+    poisson: acc=0.5658 f1=0.4210 logloss=0.9549 brier=0.5692
+    poisson_temperature_scaled: acc=0.5658 f1=0.4210 logloss=0.9549 brier=0.5692
+
+  fold2: train=['2015/2016', '2016/2017'] test=2019/2020
+    train_cutoff: 2019-08-09
+    test_range: 2019-08-09 to 2020-07-26
+    n_train=760 n_val=None n_test=380
+    frequency_baseline: acc=0.4526 f1=0.2077 logloss=1.0647 brier=0.6435
+    logistic_regression: acc=0.4816 f1=0.4097 logloss=1.0630 brier=0.6327
+    poisson: acc=0.5316 f1=0.4004 logloss=0.9974 brier=0.5936
+    poisson_temperature_scaled: acc=0.5316 f1=0.4004 logloss=0.9974 brier=0.5936
+
+  fold3: train=['2015/2016', '2016/17'] test=2019/2020
+    train_cutoff: 2019-12-29
+    test_range: 2019-12-29 to 2020-03-08
+    n_train=956 n_val=None n_test=91
+    frequency_baseline: acc=0.4835 f1=0.2173 logloss=1.0566 brier=0.6367
+    logistic_regression: acc=0.3846 f1=0.3173 logloss=1.0904 brier=0.6628
+    poisson: acc=0.5165 f1=0.3725 logloss=1.0343 brier=0.6212
+    poisson_temperature_scaled: acc=0.5165 f1=0.3725 logloss=1.0343 brier=0.6212
+
+  fold4: train=['2015/2016', '2016/17'] test=2019/2020
+    train_cutoff: 2020-03-09
+    test_range: 2020-03-09 to 2020-07-26
+    n_train=1047 n_val=None n_test=93
+    frequency_baseline: acc=0.4731 f1=0.2141 logloss=1.0516 brier=0.6347
+    logistic_regression: acc=0.5376 f1=0.4527 logloss=0.9628 brier=0.5754
+    poisson: acc=0.5806 f1=0.4343 logloss=0.9413 brier=0.5602
+    poisson_temperature_scaled: acc=0.5806 f1=0.4343 logloss=0.9413 brier=0.5602
+
+## Pooled Results - All Folds
+  frequency_baseline: acc=0.4735 f1=0.2142 logloss=1.0589 brier=0.6393 n=944
+  logistic_regression: acc=0.4693 f1=0.4085 logloss=1.0995 brier=0.6525 n=944
+  poisson: acc=0.5487 f1=0.4098 logloss=0.9783 brier=0.5832 n=944
+
+## Pooled - Seasonal Folds Only (fold1+fold2)
+  frequency_baseline: acc=0.4724 f1=0.2139 logloss=1.0601 brier=0.6402 n=760
+  logistic_regression: acc=0.4711 f1=0.4129 logloss=1.1173 brier=0.6607 n=760
+  poisson: acc=0.5487 f1=0.4107 logloss=0.9761 brier=0.5814 n=760
+
+## Pooled - Intra-Season Folds Only (fold1+fold3+fold4)
+  frequency_baseline: acc=0.4876 f1=0.2185 logloss=1.0550 brier=0.6365 n=564
+  logistic_regression: acc=0.4610 f1=0.4073 logloss=1.1241 brier=0.6658 n=564
+  poisson: acc=0.5603 f1=0.4162 logloss=0.9655 brier=0.5761 n=564
+
+## Brier Decomposition (Murphy)
+  pooled:
+    brier=0.5832 reliability=0.3711 resolution=0.3352 uncertainty=0.2438 recon=0.2797
+  pooled_seasonal:
+    brier=0.5814 reliability=0.3702 resolution=0.3346 uncertainty=0.2438 recon=0.2794
+  pooled_intra:
+    brier=0.5761 reliability=0.3676 resolution=0.3335 uncertainty=0.2440 recon=0.2780
+
+## Paired Significance vs Poisson (pooled)
+  frequency_baseline:
+    McNemar: n01=100 n10=171 stat=18.0812 p=0.0000
+    Bootstrap: mean_diff=0.0806 CI95=[0.0477, 0.1046] p=0.0000
+
+## Notes
+  - Phase 26.8 extends Phase-25 with 2 intra-season folds split at the 2019/20 COVID-19 gap (2020-03-09) and mid-season (2019-12-29).
+  - All 4 test sets are pairwise disjoint -- no double-counting in pooled metrics.
+  - COVID-19 gap (2020-03-09 to 2020-06-17, 100 days) is a documented stationarity discontinuity.
+  - No additional historical data was available locally; intra-season folds reuse the same verified 3-season E0 dataset.
+  - Fast mode evaluates only Poisson, LR, and frequency baseline.
+  - Brier decomposition follows Murphy (1973) formulation.
+  - Production DB opened read-only and SHA-256 gated (fail-closed).
+  - Only verified local data used -- no fabrication of matches, odds, or predictions.

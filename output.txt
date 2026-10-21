@@ -1,0 +1,34 @@
+[phase26_8] Running extended walkforward (fast=True, n_boot=100, seed=42)
+[phase26_8] fold1: train=('2015/2016',) val=None test=2016/2017 cutoff=2016-08-13
+[phase26_8] fold2: train=('2015/2016', '2016/2017') val=2016/2017 test=2019/2020 cutoff=2019-08-09
+[phase26_8] fold3: train=('2015/2016', '2016/17') val=None test=2019/2020 cutoff=2019-12-29
+[phase26_8] fold4: train=('2015/2016', '2016/17') val=None test=2019/2020 cutoff=2020-03-09
+[phase26_8] fold1 done: n_train=380 n_val=None n_test=380
+[phase26_8] fold2 done: n_train=760 n_val=None n_test=380
+[phase26_8] fold3 done: n_train=956 n_val=None n_test=91
+[phase26_8] fold4 done: n_train=1047 n_val=None n_test=93
+[phase26_8] Report written to C:\pridection\pridiction\reports\phase26_8\phase26_8_extended_20261021T161610Z.json
+[phase26_8] prod SHA-256 (after): 725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122  unchanged=True
+[phase26_8] Text report: C:\pridection\pridiction\reports\phase26_8\phase26_8_report_20261021T161610Z.txt
+
+[phase26_8] === Pooled Results (all folds) ===
+  frequency_baseline: acc=0.4735 brier=0.6393 logloss=1.0589 n=944
+  logistic_regression: acc=0.4693 brier=0.6525 logloss=1.0995 n=944
+  poisson: acc=0.5487 brier=0.5832 logloss=0.9783 n=944
+
+[phase26_8] === Pooled — Seasonal folds (fold1+fold2) ===
+  frequency_baseline: acc=0.4724 brier=0.6402 logloss=1.0601 n=760
+  logistic_regression: acc=0.4711 brier=0.6607 logloss=1.1173 n=760
+  poisson: acc=0.5487 brier=0.5814 logloss=0.9761 n=760
+
+[phase26_8] === Pooled — Intra-season folds (fold1+fold3+fold4) ===
+  frequency_baseline: acc=0.4876 brier=0.6365 logloss=1.0550 n=564
+  logistic_regression: acc=0.4610 brier=0.6658 logloss=1.1241 n=564
+  poisson: acc=0.5603 brier=0.5761 logloss=0.9655 n=564
+
+[phase26_8] === Brier Decomposition (Poisson) ===
+  pooled: brier=0.5832 reliab=0.0053 resol=0.0538 unc=0.6354
+  pooled_seasonal: brier=0.5814 reliab=0.0048 resol=0.0552 unc=0.6356
+  pooled_intra: brier=0.5761 reliab=0.0069 resol=0.0567 unc=0.6293
+
+[phase26_8] Production DB unchanged: True

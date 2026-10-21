@@ -61,6 +61,7 @@ class FeatureSpec:
     include_home_away_split: bool = True
     include_head_to_head: bool = True
     include_recency_weighted: bool = True
+    include_form_averages: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -76,13 +77,13 @@ class FeatureEngineer:
     >>> engineer = FeatureEngineer()
     >>> df = engineer.compute_all_features_from_db(db_path)
     """
-
     def __init__(
         self,
         lookback_windows: Sequence[int] | None = None,
         include_home_away_split: bool = True,
         include_head_to_head: bool = True,
         include_recency_weighted: bool = True,
+        include_form_averages: bool = True,
     ) -> None:
         windows = (
             list(lookback_windows)
@@ -94,6 +95,7 @@ class FeatureEngineer:
             include_home_away_split=include_home_away_split,
             include_head_to_head=include_head_to_head,
             include_recency_weighted=include_recency_weighted,
+            include_form_averages=include_form_averages,
         )
 
     # -- public API ---------------------------------------------------------
@@ -150,7 +152,8 @@ class FeatureEngineer:
 
             # Section A: team form (all matches, both venues)
             _add_form_features(
-                features, side, team_history, self.spec.lookback_windows, team_id
+                features, side, team_history, self.spec.lookback_windows, team_id,
+                include_form_averages=self.spec.include_form_averages,
             )
 
             # Section B: venue-specific performance
@@ -474,6 +477,7 @@ def _add_form_features(
     team_history: pd.DataFrame,
     windows: Sequence[int],
     team_id: int,
+    include_form_averages: bool = True,
 ) -> None:
     """Add rolling form features for a team (all matches, both venues).
 
@@ -482,6 +486,14 @@ def _add_form_features(
     goals scored, goals conceded, goal difference, matches played,
     points per match, average goals scored/conceded per match, clean
     sheets, and matches in which the team scored.
+
+    Args:
+        include_form_averages: When ``True`` the per-match-average features
+            (``points_per_match``, ``avg_goals_scored``, ``avg_goals_conceded``,
+            ``clean_sheets``, ``matches_scored``) are computed.  When
+            ``False`` only the raw-count Phase-25 baseline features are
+            produced, allowing ablation studies to isolate the effect of
+            the derived rate features.
 
     Cold start: when the team has fewer than *N* (or zero) prior matches,
     all statistics are ``None`` and ``matches_played`` records the actual
@@ -492,12 +504,14 @@ def _add_form_features(
         count = len(recent)
         if count == 0:
             for suffix in ("points", "wins", "draws", "losses",
-                           "goals_scored", "goals_conceded", "goal_diff",
-                           "points_per_match", "avg_goals_scored",
-                           "avg_goals_conceded", "clean_sheets",
-                           "matches_scored"):
+                           "goals_scored", "goals_conceded", "goal_diff"):
                 features[f"{side}_{suffix}_last_{n}"] = None
             features[f"{side}_matches_played_last_{n}"] = 0
+            if include_form_averages:
+                for suffix in ("points_per_match", "avg_goals_scored",
+                               "avg_goals_conceded", "clean_sheets",
+                               "matches_scored"):
+                    features[f"{side}_{suffix}_last_{n}"] = None
         else:
             wins = draws = losses = 0
             goals_scored = 0
@@ -538,11 +552,13 @@ def _add_form_features(
             features[f"{side}_goals_conceded_last_{n}"] = goals_conceded
             features[f"{side}_goal_diff_last_{n}"] = goals_scored - goals_conceded
             features[f"{side}_matches_played_last_{n}"] = count
-            features[f"{side}_points_per_match_last_{n}"] = total_points / count
-            features[f"{side}_avg_goals_scored_last_{n}"] = goals_scored / count
-            features[f"{side}_avg_goals_conceded_last_{n}"] = goals_conceded / count
-            features[f"{side}_clean_sheets_last_{n}"] = clean_sheets
-            features[f"{side}_matches_scored_last_{n}"] = matches_scored
+            if include_form_averages:
+                features[f"{side}_points_per_match_last_{n}"] = total_points / count
+                features[f"{side}_avg_goals_scored_last_{n}"] = goals_scored / count
+                features[f"{side}_avg_goals_conceded_last_{n}"] = goals_conceded / count
+                features[f"{side}_clean_sheets_last_{n}"] = clean_sheets
+                features[f"{side}_matches_scored_last_{n}"] = matches_scored
+
 
 
 def _add_venue_features(

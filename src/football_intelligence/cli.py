@@ -729,7 +729,7 @@ def cmd_ratings_poisson(args: argparse.Namespace) -> int:
             continue
         print(f"  Saved: {art['json']}")
         print(f"  Saved: {art['txt']}")
-        return rc
+    return rc
 
 
 def cmd_predict(args: argparse.Namespace) -> int:

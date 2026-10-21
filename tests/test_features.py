@@ -469,3 +469,192 @@ def test_existing_quality_checks_still_work(tmp_path):
                        home_goals=2, away_goals=1)
     report = check_match_data_quality(db)
     assert report.is_valid is True
+
+
+# ---------------------------------------------------------------------------
+# 17. Phase 26.5: last-five-match form features (per-match averages,
+#    clean sheets, venue form, recency-weighted points)
+# ---------------------------------------------------------------------------
+
+
+def test_per_match_averages_for_both_teams():
+    """points_per_match, avg_goals_scored/conceded computed for last 5."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    # Team 1 (home): 4 matches, pts=7, GS=6, GC=5
+    assert feats["home_matches_played_last_5"] == 4
+    assert feats["home_points_per_match_last_5"] == 7 / 4
+    assert feats["home_avg_goals_scored_last_5"] == 6 / 4
+    assert feats["home_avg_goals_conceded_last_5"] == 5 / 4
+
+    # Team 2 (away): 3 matches, pts=1, GS=3, GC=5
+    assert feats["away_matches_played_last_5"] == 3
+    assert feats["away_points_per_match_last_5"] == 1 / 3
+    assert feats["away_avg_goals_scored_last_5"] == 3 / 3
+    assert feats["away_avg_goals_conceded_last_5"] == 5 / 3
+
+
+def test_clean_sheets_and_matches_scored():
+    """Clean sheets = matches where the team conceded 0; scored = matches where GF > 0."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    # Team 1 (home): m1(2-1,CS=no), m3(0-3,CS=no), m5(3-0,CS=yes), m6(1-1,CS=no)
+    assert feats["home_clean_sheets_last_5"] == 1
+    assert feats["home_matches_scored_last_5"] == 3  # m3 had 0 goals
+
+    # Team 2 (away): m1(1-2,CS=no), m4(1-2,CS=no), m6(1-1,CS=no)
+    assert feats["away_clean_sheets_last_5"] == 0
+    assert feats["away_matches_scored_last_5"] == 3  # all scored 1
+
+
+
+
+# ---------------------------------------------------------------------------
+# 17. Phase 26.5: venue-specific and recency-weighted form features
+# ---------------------------------------------------------------------------
+
+
+def test_venue_specific_form_home_team():
+    """Home-team venue features reflect only that team's home matches."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    # Team 1 home matches: m1(W,2-1), m3(L,0-3), m5(W,3-0), m6(D,1-1)
+    assert feats["home_matches_at_home_last_5"] == 4
+    assert feats["home_points_at_home_last_5"] == 7
+    assert feats["home_wins_at_home_last_5"] == 2
+    assert feats["home_draws_at_home_last_5"] == 1
+    assert feats["home_losses_at_home_last_5"] == 1
+    assert feats["home_goals_scored_at_home_last_5"] == 6
+    assert feats["home_goals_conceded_at_home_last_5"] == 5
+    assert feats["home_goal_diff_at_home_last_5"] == 1
+    assert feats["home_clean_sheets_at_home_last_5"] == 1
+    assert feats["home_points_per_match_at_home_last_5"] == 7 / 4
+
+
+def test_venue_specific_form_away_team():
+    """Away-team venue features reflect only that team's away matches."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    # Team 2 away matches: m1(L,1-2), m6(D,1-1)
+    assert feats["away_matches_at_away_last_5"] == 2
+    assert feats["away_points_at_away_last_5"] == 1
+    assert feats["away_wins_at_away_last_5"] == 0
+    assert feats["away_draws_at_away_last_5"] == 1
+    assert feats["away_losses_at_away_last_5"] == 1
+    assert feats["away_goals_scored_at_away_last_5"] == 2
+    assert feats["away_goals_conceded_at_away_last_5"] == 3
+    assert feats["away_goal_diff_at_away_last_5"] == -1
+    assert feats["away_clean_sheets_at_away_last_5"] == 0
+    assert feats["away_points_per_match_at_away_last_5"] == 1 / 2
+
+
+def test_recency_weighted_points():
+    """Recency-weighted points use linear weights 1..n chronologically."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    # Team 1: pts=[3, 0, 3, 1], weights=[1, 2, 3, 4] -> 16/10 = 1.6
+    assert feats["home_recency_weighted_points_last_5"] == 1.6
+    # Team 2: pts=[0, 0, 1], weights=[1, 2, 3] -> 3/6 = 0.5
+    assert feats["away_recency_weighted_points_last_5"] == 0.5
+
+
+def test_no_history_returns_none_for_form_features():
+    """When a team has no prior matches, form features are NaN."""
+    df = _add_target_match(
+        _make_history_df().iloc[0:0], mid=99, hg=None, ag=None,
+        home=999, away=888, status="available",
+    )
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    assert feats["home_matches_played_last_5"] == 0
+    assert pd.isna(feats["home_points_per_match_last_5"])
+    assert pd.isna(feats["home_avg_goals_scored_last_5"])
+    assert pd.isna(feats["home_recency_weighted_points_last_5"])
+
+
+def test_fewer_than_five_matches_returns_correct_count():
+    """Teams with fewer than 5 prior matches still get full stats."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=None, ag=None,
+                           home=3, away=4, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    # Team 3 appears in m2 (draw) and m3 (loss) -> 2 matches
+    assert feats["home_matches_played_last_5"] == 2
+
+
+def test_future_matches_excluded():
+    """Matches on or after the fixture date are excluded from history."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=98, hg=5, ag=0,
+                           date="2024-08-12T15:00:00+00:00",
+                           home=1, away=2, status="available")
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    assert feats["home_matches_played_last_5"] == 4
+    assert feats["home_points_last_5"] == 7
+
+
+def test_form_features_with_zero_goals_conceded():
+    """Clean sheet counted when a team concedes exactly 0."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    feats = fe.compute_features(df, 99)
+
+    assert feats["home_clean_sheets_at_home_last_5"] == 1
+
+
+def test_all_new_form_features_present_in_feature_columns():
+    """All Phase 26.5 feature names appear in compute_all_features()."""
+    df = _make_history_df()
+    df = _add_target_match(df, mid=99, hg=2, ag=1, status="available")
+    fe = FeatureEngineer()
+    cols = list(fe.compute_all_features(df).columns)
+
+    expected_both = [
+    "points_per_match_last_5", "avg_goals_scored_last_5",
+    "avg_goals_conceded_last_5", "clean_sheets_last_5",
+    "matches_scored_last_5", "recency_weighted_points_last_5",
+    "recency_matches_last_5",
+    ]
+    expected_home_only = [
+        "points_at_home_last_5", "wins_at_home_last_5",
+        "draws_at_home_last_5", "losses_at_home_last_5",
+        "goals_scored_at_home_last_5", "goals_conceded_at_home_last_5",
+        "goal_diff_at_home_last_5", "clean_sheets_at_home_last_5",
+        "points_per_match_at_home_last_5", "matches_at_home_last_5",
+    ]
+    expected_away_only = [
+        "points_at_away_last_5", "wins_at_away_last_5",
+        "draws_at_away_last_5", "losses_at_away_last_5",
+        "goals_scored_at_away_last_5", "goals_conceded_at_away_last_5",
+        "goal_diff_at_away_last_5", "clean_sheets_at_away_last_5",
+        "points_per_match_at_away_last_5", "matches_at_away_last_5",
+    ]
+    for base in expected_both:
+        assert f"home_{base}" in cols, f"home_{base} missing"
+        assert f"away_{base}" in cols, f"away_{base} missing"
+    for base in expected_home_only:
+        assert f"home_{base}" in cols, f"home_{base} missing"
+    for base in expected_away_only:
+        assert f"away_{base}" in cols, f"away_{base} missing"

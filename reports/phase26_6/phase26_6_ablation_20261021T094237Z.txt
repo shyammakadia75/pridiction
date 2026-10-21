@@ -1,0 +1,108 @@
+Phase 26.6 - Feature Ablation Study
+==================================================
+Produced: 20261021T094237Z
+Strategy: expanding_window_chronological_walkforward
+Seed: 42
+
+Dataset
+-------
+Source: disposable DB from staged FD E0 CSVs
+Production DB SHA-256: 725af574b88dc033bd3b00928de503f9bd9a836fbe4252832b7812dce0ab3122
+Production DB unchanged: True
+Disposable DB SHA-256: 9b4d17414a27a84890fc8cafa8f715b38e5c3b557ca034524e028be2080c724a
+
+Poisson Sanity Check
+--------------------
+Status: PASS
+Message: Poisson predictions identical across all configs for every fold (Poisson does not consume engineered features).
+
+Pooled Metric Summary (LR model)
+======================================================================
+Config                    #Feats  Accuracy  Macro-F1   LogLoss     Brier
+----------------------------------------------------------------------
+A_baseline                    46    0.4671    0.4186    1.0438    0.6269
+B_plus_form_averages          70    0.4632    0.4265    1.1024    0.6515
+C_plus_venue_split            90    0.4539    0.4189    1.2130    0.7009
+D_plus_recency_weighted       95    0.4645    0.4280    1.2070    0.6966
+
+Pooled Metric Summary (Poisson - invariant)
+----------------------------------------------------------------------
+A_baseline               acc=0.5487 brier=0.5814
+B_plus_form_averages     acc=0.5487 brier=0.5814
+C_plus_venue_split       acc=0.5487 brier=0.5814
+D_plus_recency_weighted  acc=0.5487 brier=0.5814
+
+Paired Tests (Config B/C/D vs Config A - LR log-loss)
+----------------------------------------------------------------------
+  A_baseline -> B_plus_form_averages: mean_diff=+0.058562, 95%CI=[+0.020662, +0.096881], p_better_b=0.999 (B better, significant)
+    McNemar: p=0.8843829672609316, significant=N/A
+  A_baseline -> C_plus_venue_split: mean_diff=+0.169195, 95%CI=[+0.118315, +0.221086], p_better_b=1.000 (B better, significant)
+    McNemar: p=0.5327042213056808, significant=N/A
+  A_baseline -> D_plus_recency_weighted: mean_diff=+0.163217, 95%CI=[+0.111979, +0.215633], p_better_b=1.000 (B better, significant)
+    McNemar: p=0.9462677277802586, significant=N/A
+
+Per-Fold Details
+----------------
+
+  Config A_baseline | fold1 | n_train=380 n_test=380 n_feats=46
+    logistic_regression: acc=0.4816 macroF1=0.4284 logloss=1.0339 brier=0.6205
+    poisson: acc=0.5658 macroF1=0.4210 logloss=0.9549 brier=0.5692
+    ens_poisson_lr_equal: acc=0.5474 macroF1=0.4448 logloss=0.9636 brier=0.5750
+    ens_poisson_lr_optimal: acc=0.5474 macroF1=0.4448 logloss=0.9636 brier=0.5750
+
+  Config A_baseline | fold2 | n_train=760 n_test=380 n_feats=46
+    logistic_regression: acc=0.4526 macroF1=0.4086 logloss=1.0537 brier=0.6333
+    poisson: acc=0.5316 macroF1=0.4004 logloss=0.9974 brier=0.5936
+    ens_poisson_lr_equal: acc=0.5237 macroF1=0.4304 logloss=0.9944 brier=0.5914
+    ens_poisson_lr_optimal: acc=0.5368 macroF1=0.4092 logloss=0.9898 brier=0.5883
+
+  Config B_plus_form_averages | fold1 | n_train=380 n_test=380 n_feats=70
+    logistic_regression: acc=0.4842 macroF1=0.4458 logloss=1.0920 brier=0.6453
+    poisson: acc=0.5658 macroF1=0.4210 logloss=0.9549 brier=0.5692
+    ens_poisson_lr_equal: acc=0.5342 macroF1=0.4563 logloss=0.9664 brier=0.5774
+    ens_poisson_lr_optimal: acc=0.5342 macroF1=0.4563 logloss=0.9664 brier=0.5774
+
+  Config B_plus_form_averages | fold2 | n_train=760 n_test=380 n_feats=70
+    logistic_regression: acc=0.4421 macroF1=0.4076 logloss=1.1128 brier=0.6576
+    poisson: acc=0.5316 macroF1=0.4004 logloss=0.9974 brier=0.5936
+    ens_poisson_lr_equal: acc=0.4974 macroF1=0.4130 logloss=0.9931 brier=0.5908
+    ens_poisson_lr_optimal: acc=0.5395 macroF1=0.4057 logloss=0.9839 brier=0.5841
+
+  Config C_plus_venue_split | fold1 | n_train=380 n_test=380 n_feats=90
+    logistic_regression: acc=0.4763 macroF1=0.4419 logloss=1.2198 brier=0.7027
+    poisson: acc=0.5658 macroF1=0.4210 logloss=0.9549 brier=0.5692
+    ens_poisson_lr_equal: acc=0.5368 macroF1=0.4653 logloss=0.9894 brier=0.5941
+    ens_poisson_lr_optimal: acc=0.5368 macroF1=0.4653 logloss=0.9894 brier=0.5941
+
+  Config C_plus_venue_split | fold2 | n_train=760 n_test=380 n_feats=90
+    logistic_regression: acc=0.4316 macroF1=0.3965 logloss=1.2063 brier=0.6990
+    poisson: acc=0.5316 macroF1=0.4004 logloss=0.9974 brier=0.5936
+    ens_poisson_lr_equal: acc=0.4974 macroF1=0.4227 logloss=1.0109 brier=0.6020
+    ens_poisson_lr_optimal: acc=0.5263 macroF1=0.3958 logloss=0.9898 brier=0.5882
+
+  Config D_plus_recency_weighted | fold1 | n_train=380 n_test=380 n_feats=95
+    logistic_regression: acc=0.4763 macroF1=0.4371 logloss=1.2321 brier=0.7037
+    poisson: acc=0.5658 macroF1=0.4210 logloss=0.9549 brier=0.5692
+    ens_poisson_lr_equal: acc=0.5316 macroF1=0.4585 logloss=0.9872 brier=0.5921
+    ens_poisson_lr_optimal: acc=0.5316 macroF1=0.4585 logloss=0.9872 brier=0.5921
+
+  Config D_plus_recency_weighted | fold2 | n_train=760 n_test=380 n_feats=95
+    logistic_regression: acc=0.4526 macroF1=0.4191 logloss=1.1820 brier=0.6895
+    poisson: acc=0.5316 macroF1=0.4004 logloss=0.9974 brier=0.5936
+    ens_poisson_lr_equal: acc=0.5158 macroF1=0.4453 logloss=1.0036 brier=0.5983
+    ens_poisson_lr_optimal: acc=0.5289 macroF1=0.3981 logloss=0.9881 brier=0.5876
+
+Notes
+-----
+- Ablation compares logistic-regression model across 4 feature configurations on identical walk-forward folds.
+- Config A = Phase-25 baseline (no form averages, no venue split, no recency weighting).
+- Config B = A + per-match average features.
+- Config C = B + venue-specific form features.
+- Config D = C + recency-weighted points.
+- Poisson model does NOT consume engineered features; its predictions must be identical across all configs (sanity check enforced).
+- Same-day exclusions: fixture date inclusive (matches on the fixture date are excluded from history).
+- Cold-start: NaN for rate features when no matches exist; matches_played = 0.
+- Production DB opened read-only and SHA-256 gated.
+- Only 3 seasons available; walk-forward limited to 2 folds.
+- COVID-19 gap in 2019/20 is a documented stationarity discontinuity.
+- No fabricating matches, odds, predictions, or results.
